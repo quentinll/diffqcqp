@@ -1,0 +1,6 @@
+# ninja log v5
+0	78	1603384968277095951	build.ninja	7bd5e420e81b99b0
+0	4417	1603384972705112549	CMakeFiles/diffsolver.dir/main.cpp.o	4bf8f8a644561fcd
+1	4420	1603384972705112549	qcqplib/CMakeFiles/qcqplib.dir/Solver.cpp.o	babf2ac5626d5a75
+4421	4856	1603384973141114183	qcqplib/libqcqplib.a	d3f1ac61a08613ca
+4856	5087	1603384973373115054	diffsolver	8cbcefd3d9232957
