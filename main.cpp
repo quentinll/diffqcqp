@@ -5,5 +5,5 @@ using namespace std;
  
 int main(){
     Solver solver;
-    solver.say_hello();
+    solver.test();
 }
