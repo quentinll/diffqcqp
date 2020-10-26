@@ -66,7 +66,28 @@ VectorXd Solver::solveQP(MatrixXd P, VectorXd q, VectorXd warm_start, double eps
     return l_2;
 }
 
+VectorXd Solver::prox_circle(VectorXd l, VectorXd l_n){
+    int nb_contacts;
+    double norm_l2d;
+    VectorXd l_2d(2);
+    nb_contacts = l_n.size();
+    for(int i = 0; i<nb_contacts; i++){
+        l_2d(0) = l(2*i);
+        l_2d(1) = l(2*i+1);
+        norm_l2d = l_2d.norm();
+        if(norm_l2d> l_n(i)){
+            l(2*i) = l_2d(0)*l_n(i)/norm_l2d;
+            l(2*i+1) = l_2d(1)*l_n(i)/norm_l2d;
+        }
+    }
+    return l;
+}
+
 VectorXd Solver::solveQCQP(MatrixXd P, VectorXd q, VectorXd l_n,VectorXd warm_start, double epsilon, double mu_prox, int max_iter){
+    typedef std::chrono::high_resolution_clock Time;
+    typedef std::chrono::duration<float> fsec;
+    auto t0 = Time::now();
+
     double L, rho, res;
     MatrixXd Pinv(P.rows(), P.cols()),P_prox(P.rows(), P.cols());
     VectorXd q_prox(q.size()),l(q.size()),l_2(q.size()), u(q.size());
@@ -78,15 +99,17 @@ VectorXd Solver::solveQCQP(MatrixXd P, VectorXd q, VectorXd l_n,VectorXd warm_st
     for(int i = 0; i< max_iter; i++){
         l = Pinv*(rho*l_2-u-q_prox);
         q_prox = q - mu_prox*l;
-        l_2 = (l+u/rho).cwiseMax(0);
+        l_2 = Solver::prox_circle(l+u/rho,l_n);
         u += rho*(l-l_2);
         res = (P*l+q + u).lpNorm<Infinity>();
-        std::cout <<"res: "<< res << std::endl;
         if(res < epsilon){
-            std::cout <<"iter: "<< i << std::endl;
             break;
         }
     };
+    auto t1 = Time::now();
+    fsec fs = t1 - t0;
+    std::cout << fs.count() << "s\n";
+
     return l_2;
 }
 
@@ -101,8 +124,9 @@ int Solver::test(){
     VectorXd q(m.cols()), warm_start(m.cols());
     q(0) = -2;
     q(1) = -3;
-    VectorXd sol(q.size());
-    sol = Solver::solveQP(m,q,warm_start,epsilon,mu_prox,max_iter);
+    VectorXd sol(q.size()),l_n(q.size()/2);
+    l_n(0) =1;
+    sol = Solver::solveQCQP(m,q,l_n,warm_start,epsilon,mu_prox,max_iter);
     std::cout << sol << std::endl;
     return 0;
 }
