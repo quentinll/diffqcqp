@@ -15,3 +15,4 @@ set(HEADERS
 add_library(qcqplib ${SRCS} ${HEADERS})
 
 target_link_libraries(qcqplib Eigen3::Eigen)
+target_compile_options(qcqplib PRIVATE -fPIC)
