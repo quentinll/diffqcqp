@@ -18,19 +18,22 @@ VectorXd Solver::iterative_refinement(MatrixXd A, VectorXd b, double mu_ir = 1e-
     Ab = A.transpose()*b;
     //MatrixXd A_t = A.transpose();
     AA_tild = A.transpose()*A;
-    AA_tild_inv = AA_tild+mu_ir*MatrixXd::Identity(AA_tild.rows(),AA_tild.cols());
+    MatrixXd Id = MatrixXd::Identity(AA_tild.rows(),AA_tild.cols());
+    AA_tild_inv = AA_tild+mu_ir*Id;
     //SelfAdjointEigenSolver<MatrixXd> eigensolver(AA_tild);
     //if (eigensolver.info() != Success) abort();
     //std::cout << " A_t  : " << A_t << std::endl;
     //std::cout << " A  : " << A << std::endl;
     //std::cout << " dd  : " << b << std::endl;
     //cout << "The eigenvalues of AA are:\n" << eigensolver.eigenvalues() << endl;
-    AA_tild_inv = AA_tild_inv.inverse();
+    //AA_tild_inv = AA_tild_inv.inverse();
+    AA_tild_inv = AA_tild_inv.llt().solve(Id);
     int not_improved = 0;
     double res;
     double res_pred = std::numeric_limits<double>::max();
+    VectorXd AA_tild_invAb = AA_tild_inv*Ab;
     for(int i = 0; i<max_iter; i++){
-        x = AA_tild_inv * (mu_ir*x + Ab);
+        x = mu_ir*AA_tild_inv*x + AA_tild_invAb;
         delta = AA_tild*x - Ab;
         //std::cout << "IR res: "<< delta.norm() << std::endl;
         res = delta.norm();
@@ -52,47 +55,58 @@ VectorXd Solver::iterative_refinement(MatrixXd A, VectorXd b, double mu_ir = 1e-
 double Solver::power_iteration(MatrixXd A,  double epsilon = 1e-10, int max_iter = 100){
     VectorXd v(A.cols());
     v = VectorXd::Random(A.cols());
+    v.normalize();
     for (int i =0; i< max_iter; i++){
         v = A*v;
-        v = v/v.norm();
+        v.normalize();
     };
     double l_max;
-    l_max = v.dot(A*v)/v.dot(v);
+    l_max = v.dot(A*v);
     return l_max;
 }
 
 VectorXd Solver::solveQP(MatrixXd P, VectorXd q, VectorXd warm_start, double epsilon =1e-10, double mu_prox = 1e-7, int max_iter=1000){
-    //typedef std::chrono::high_resolution_clock Time;
-    //typedef std::chrono::duration<float> fsec;
-    //auto t0 = Time::now();
-    //std::cout << P << std::endl;
-    //std::cout << q << std::endl;
-    //std::cout << warm_start << std::endl;
-    double L, rho, res;
-    MatrixXd Pinv(P.rows(), P.cols()),P_prox(P.rows(), P.cols());
+    /*typedef std::chrono::high_resolution_clock Time;
+    typedef std::chrono::duration<float> fsec;
+    auto t0 = Time::now();*/
+    double rho, res;
+    MatrixXd Pinv(P.rows(), P.cols());
     VectorXd q_prox(q.size()),l(q.size());
     VectorXd u = VectorXd::Zero(q.size());
     VectorXd l_2 = VectorXd::Zero(q.size());
     l = warm_start;
-    L = Solver::power_iteration(P,epsilon, 10);
-    rho = std::sqrt(mu_prox*L)*std::pow(L/mu_prox,.4);
+    //auto t1 = Time::now();
+    rho = Solver::power_iteration(P,epsilon, 10);
+    rho = std::sqrt(mu_prox*rho)*std::pow(rho/mu_prox,.4);
     q_prox = q;
-    P_prox = P+(rho+mu_prox)*MatrixXd::Identity(P.rows(), P.cols());
-    Pinv = P_prox.inverse();
+    MatrixXd Id = MatrixXd::Identity(P.rows(), P.cols());
+    Pinv = P+(rho+mu_prox)*Id;
+    //auto t2 = Time::now();
+    //Pinv = Pinv.inverse();
+    //Pinv = PartialPivLU<MatrixXd>(Pinv).inverse();
+    Pinv = Pinv.llt().solve(Id);
+    //std::cout << Pinv*(P+(rho+mu_prox)*Id) << std::endl;
+    //auto t3 = Time::now();
     for(int i = 0; i< max_iter; i++){
         l = Pinv*(rho*l_2-u-q_prox);
         q_prox = q - mu_prox*l;
         l_2 = (l+u/rho).cwiseMax(0);
-        u += rho*(l-l_2);
+        u.noalias() += rho*(l-l_2);
         res = (P*l+q + u).lpNorm<Infinity>();
+        //std::cout << res << std::endl;
         if(res < epsilon){
             break;
         }
     };
-    //auto t1 = Time::now();
-    //fsec fs = t1 - t0;
-    //std::cout << fs.count() << "s\n";
-
+    /*auto t4 = Time::now();
+    fsec fs1 = t4 - t3;
+    fsec fs3 = t3 - t2;
+    fsec fs4 = t2 - t1;
+    fsec fs2 = t4 - t0;
+    std::cout << "power iter: " << fs4.count() << "s\n";
+    std::cout << "inverting: " << fs3.count() << "s\n";
+    std::cout << "iterations: " << fs1.count() << "s\n";
+    std::cout << "total: " << fs2.count() << "s\n";*/
     //std::cout << l_2 << std::endl;
     return l_2;
 }
@@ -168,21 +182,25 @@ VectorXd Solver::prox_circle(VectorXd l, VectorXd l_n){
 }
 
 VectorXd Solver::solveQCQP(MatrixXd P, VectorXd q, VectorXd l_n,VectorXd warm_start, double epsilon=1e-10, double mu_prox = 1e-7, int max_iter = 1000){
-    //typedef std::chrono::high_resolution_clock Time;
-    //typedef std::chrono::duration<float> fsec;
-    //auto t0 = Time::now();
+    /*typedef std::chrono::high_resolution_clock Time;
+    typedef std::chrono::duration<float> fsec;
+    auto t0 = Time::now();*/
 
-    double L, rho, res;
-    MatrixXd Pinv(P.rows(), P.cols()),P_prox(P.rows(), P.cols());
+    double rho, res;
+    MatrixXd Pinv(P.rows(), P.cols());
     VectorXd q_prox(q.size()),l(q.size());
     VectorXd u = VectorXd::Zero(q.size());
     VectorXd l_2 = VectorXd::Zero(q.size());
     l = warm_start;
-    L = Solver::power_iteration(P,epsilon, 10);
-    rho = std::sqrt(mu_prox*L)*std::pow(L/mu_prox,.4);
+    rho = Solver::power_iteration(P,epsilon, 10);
+    rho = std::sqrt(mu_prox*rho)*std::pow(rho/mu_prox,.4);
     q_prox = q;
-    P_prox = P+(rho+mu_prox)*MatrixXd::Identity(P.rows(), P.cols());
-    Pinv = P_prox.inverse();
+    MatrixXd Id = MatrixXd::Identity(P.rows(), P.cols());
+    Pinv = P+(rho+mu_prox)*Id;
+    //Pinv = Pinv.inverse();
+    //Pinv = PartialPivLU<MatrixXd>(Pinv).inverse();
+    Pinv = Pinv.llt().solve(Id);
+    //auto t1 = Time::now();
     for(int i = 0; i< max_iter; i++){
         l = Pinv*(rho*l_2-u-q_prox);
         q_prox = q - mu_prox*l;
@@ -193,9 +211,11 @@ VectorXd Solver::solveQCQP(MatrixXd P, VectorXd q, VectorXd l_n,VectorXd warm_st
             break;
         }
     };
-    //auto t1 = Time::now();
-    //fsec fs = t1 - t0;
-    //std::cout << fs.count() << "s\n";
+    /*auto t2 = Time::now();
+    fsec fs1 = t2 - t1;
+    fsec fs2 = t2 - t0;
+    std::cout << "iterations: " << fs1.count() << "s\n";
+    std::cout << "total: " << fs2.count() << "s\n";*/
 
     return l_2;
 }
@@ -228,9 +248,11 @@ VectorXd Solver::dualFromPrimalQCQP(MatrixXd P, VectorXd q, VectorXd l_n, Vector
         A_tild.col(i) = A.col(not_null[i]);
     }
     //A_tild = A(all,not_null);
-    A_tild = (A_tild.transpose()*A_tild).inverse()*A_tild.transpose();
+    //A_tild = (A_tild.transpose()*A_tild).inverse()*A_tild.transpose();
     VectorXd gamma_not_null(not_null.size());
-    gamma_not_null = -A_tild*(P*l+q);
+    //A_tild = (A_tild.transpose()*A_tild).llt().solve(MatrixXd::Identity(A_tild.cols(),A_tild.cols()))*A_tild.transpose();
+    //gamma_not_null = -A_tild*(P*l+q);
+    gamma_not_null = -(A_tild.transpose()*A_tild).llt().solve(A_tild.transpose()*(P*l+q));
     int idx;
     for(int i=0; i<not_null.size();i++){
         idx =not_null[i];
@@ -316,7 +338,8 @@ std::tuple<MatrixXd,MatrixXd> Solver::makeE12QCQP(VectorXd l_n, VectorXd mu, Vec
 }
 
 int Solver::test(){
-    
+    typedef std::chrono::high_resolution_clock Time;
+    typedef std::chrono::duration<float> fsec;
     MatrixXd m2(4,4);
     m2 << 4.45434,  1.11359, -2.22717,  1.11359,
          1.11359,  4.45434,  1.11359, -2.22717,
@@ -330,7 +353,7 @@ int Solver::test(){
     warm_start2 << 0.00220234,0.00220234,0.00220234,0.00220234;
 
     sol = Solver::solveQCQP(m2,q2,l_n,warm_start2);
-    std::cout << " solution  : " << sol << std::endl;
+    //std::cout << " solution  : " << sol << std::endl;
     VectorXd gamma(sol.size());
     gamma = Solver::dualFromPrimalQCQP(m2,q2,l_n,sol);
     MatrixXd  A(sol.size(), l_n.size());
@@ -338,25 +361,26 @@ int Solver::test(){
         A(2*i,i) = 2*sol(2*i);
         A(2*i+1,i) = 2*sol(2*i+1);
     }
-    std::cout<< "KKT : " << m2*sol + q2 + A*gamma << std::endl;
-    std::cout << "solution : " << sol << std::endl;
-    std::cout << "solution dual : " << gamma << std::endl;
+    //std::cout<< "KKT : " << m2*sol + q2 + A*gamma << std::endl;
+    //std::cout << "solution : " << sol << std::endl;
+    //std::cout << "solution dual : " << gamma << std::endl;
     VectorXd grad_l(sol.size());
     VectorXd bl(sol.size());
     bl = Solver::solveDerivativesQCQP(m2,q2,l_n,sol,gamma,grad_l,1e-8);
-    std::cout << " bl : " << bl << std::endl;
+    //std::cout << " bl : " << bl << std::endl;
 
     sol2 = Solver::solveQP(m2,q2,warm_start2);
     VectorXd gamma2(sol2.size());
     gamma2 = Solver::dualFromPrimalQP(m2,q2,sol2);
-    std::cout<< "KKT 2: " << m2*sol2 + q2 + gamma2 << std::endl;
+    //std::cout<< "KKT 2: " << m2*sol2 + q2 + gamma2 << std::endl;
     std::cout << "solution 2: " << sol2 << std::endl;
-    std::cout << "solution dual 2 : " << gamma2 << std::endl;
+    //std::cout << "solution dual 2 : " << gamma2 << std::endl;
     VectorXd grad_l2(sol2.size());
     VectorXd bl2(sol2.size());
     bl2 = Solver::solveDerivativesQP(m2,q2,sol2,gamma2,grad_l2,1e-8);
-    std::cout << " bl2 : " << bl2 << std::endl;
+    //std::cout << " bl2 : " << bl2 << std::endl;
 
+    
     MatrixXd G(12,12);
     G <<  6.6174e-24,  0.0000e+00,  0.0000e+00,  0.0000e+00, -4.8452e-04, 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00, 0.0000e+00,  0.0000e+00,
          0.0000e+00, -6.6174e-24,  0.0000e+00,  0.0000e+00,  0.0000e+00, 0.0000e+00, -3.9642e-04,  0.0000e+00,  0.0000e+00,  0.0000e+00, 0.0000e+00,  0.0000e+00,
@@ -371,9 +395,20 @@ int Solver::test(){
         0.0000e+00,  0.0000e+00,  0.0000e+00, -1.0544e+00,  1.1136e+00,1.6704e+00,  1.1136e+00, -1.6704e+00,  4.4543e+00, -1.6704e+00,4.3570e+03,  1.6704e+00,
         0.0000e+00,  0.0000e+00,  0.0000e+00,  9.5861e-17, -1.6704e+00,4.4543e+00, -1.6704e+00,  1.1136e+00,  1.6704e+00,  1.1136e+00,1.6704e+00,  4.3570e+03;
     G(0,0) = 0; G(1,1) = 4e1;
+    MatrixXd GT = G.transpose();
+    G = G*GT;
     VectorXd g(12);
     g << 0.0000e+00,0.0000e+00,0.0000e+00,0.0000e+00,7.2829e-04,2.2609e-14,7.2829e-04,2.2609e-14,7.2829e-04,2.2609e-14,7.2829e-04,2.2609e-14;
-    std::cout << " IR : " << Solver::iterative_refinement(G,g,1e-14) << std::endl;
-
+    VectorXd sol3(12);
+    //VectorXd warm_start3  = VectorXd::Zero(12);
+    VectorXd warm_start3  = VectorXd::Random(12);
+    auto t0 = Time::now();
+    for (int i = 0; i< 1; i++){
+        sol3 = Solver::solveQP(G,g,warm_start3,1e-10,1e-7,10);
+    }
+    auto t1 = Time::now();
+    fsec fs = t1 - t0;
+    std::cout<< "solving QP: " << fs.count() << "s\n";
+    //std::cout << " IR : " << Solver::iterative_refinement(G,g,1e-14) << std::endl;
     return 0;
 }
