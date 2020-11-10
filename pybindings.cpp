@@ -12,14 +12,14 @@ using namespace Eigen;
 using namespace std;
 
 
-VectorXd solveQP( MatrixXd P, VectorXd q,VectorXd warm_start, double epsilon =1e-10, double mu_prox = 1e-7, int max_iter=1000){
+VectorXd solveQP( const MatrixXd &P, const VectorXd &q, const VectorXd &warm_start,const double &epsilon =1e-10, const double &mu_prox = 1e-7, const int &max_iter=1000){
     Solver solver;
     VectorXd solution(q.size());
     solution = solver.solveQP(P,q,warm_start,epsilon,mu_prox,max_iter);
     return solution;
 }
 
-VectorXd solveDerivativesQP( MatrixXd P, VectorXd q, VectorXd l, VectorXd grad_l, double epsilon =1e-10){
+VectorXd solveDerivativesQP( const MatrixXd &P, const VectorXd &q, const VectorXd &l, const VectorXd &grad_l, const double &epsilon =1e-10){
     Solver solver;
     VectorXd gamma(l.size()),bl(l.size());
     gamma = solver.dualFromPrimalQP(P,q,l,epsilon);
@@ -27,22 +27,22 @@ VectorXd solveDerivativesQP( MatrixXd P, VectorXd q, VectorXd l, VectorXd grad_l
     return bl;
 }
 
-VectorXd solveQCQP(MatrixXd P, VectorXd q, VectorXd l_n, VectorXd mu,VectorXd warm_start, double epsilon=1e-10, double mu_prox = 1e-7, int max_iter = 1000){
+VectorXd solveQCQP(const MatrixXd &P, const VectorXd &q,const VectorXd &l_n, const VectorXd &mu, const VectorXd &warm_start,const double &epsilon=1e-10,const double &mu_prox = 1e-7, const int &max_iter = 1000){
     Solver solver;
-    VectorXd solution(q.size());
-    l_n = l_n.cwiseProduct(mu);
-    solution = solver.solveQCQP(P,q,l_n,warm_start,epsilon,mu_prox,max_iter);
+    VectorXd solution(q.size()), mul_n(l_n.size());
+    mul_n = l_n.cwiseProduct(mu);
+    solution = solver.solveQCQP(P,q,mul_n,warm_start,epsilon,mu_prox,max_iter);
     return solution;
 }
 
-std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP( MatrixXd P, VectorXd q, VectorXd l_n, VectorXd mu, VectorXd l, VectorXd grad_l, double epsilon =1e-10){
+std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l_n, const VectorXd &mu, const VectorXd &l, const VectorXd &grad_l, const double &epsilon =1e-10){
     Solver solver;
     MatrixXd E1(l_n.size(),l_n.size()),E2(l_n.size(),l_n.size());
     VectorXd mul_n(l_n.size()),gamma(l.size()),blgamma(l.size());
     mul_n = l_n.cwiseProduct(mu);
     gamma = solver.dualFromPrimalQCQP(P,q,mul_n,l,epsilon);
     //std::cout << " gamma : " << gamma << std::endl;
-    std::tie(E1,E2) = solver.makeE12QCQP(l_n, mu, gamma);
+    std::tie(E1,E2) = solver.getE12QCQP(l_n, mu, gamma);
     blgamma = solver.solveDerivativesQCQP(P,q,mul_n,l,gamma,grad_l,epsilon);
     return std::make_tuple(E1,E2,blgamma);
 }
