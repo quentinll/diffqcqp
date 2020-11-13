@@ -12,14 +12,14 @@ using namespace Eigen;
 using namespace std;
 
 
-VectorXd solveQP( const MatrixXd &P, const VectorXd &q, const VectorXd &warm_start,const double &epsilon =1e-10, const double &mu_prox = 1e-7, const int &max_iter=1000){
+VectorXd solveQP( const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q, const Ref<const VectorXd> &warm_start,const double &epsilon =1e-10, const double &mu_prox = 1e-7, const int &max_iter=1000, const bool adaptative_rho=true){
     Solver solver;
     VectorXd solution(q.size());
-    solution = solver.solveQP(P,q,warm_start,epsilon,mu_prox,max_iter);
+    solution = solver.solveQP(P,q,warm_start,epsilon,mu_prox,max_iter,adaptative_rho);
     return solution;
 }
 
-VectorXd solveDerivativesQP( const MatrixXd &P, const VectorXd &q, const VectorXd &l, const VectorXd &grad_l, const double &epsilon =1e-10){
+VectorXd solveDerivativesQP(const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q, const Ref<const VectorXd> &l, const Ref<const VectorXd> &grad_l, const double &epsilon =1e-10){
     Solver solver;
     VectorXd gamma(l.size()),bl(l.size());
     gamma = solver.dualFromPrimalQP(P,q,l,epsilon);
@@ -27,15 +27,15 @@ VectorXd solveDerivativesQP( const MatrixXd &P, const VectorXd &q, const VectorX
     return bl;
 }
 
-VectorXd solveQCQP(const MatrixXd &P, const VectorXd &q,const VectorXd &l_n, const VectorXd &mu, const VectorXd &warm_start,const double &epsilon=1e-10,const double &mu_prox = 1e-7, const int &max_iter = 1000){
+VectorXd solveQCQP( const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q,const Ref<const VectorXd> &l_n, const Ref<const VectorXd> &mu, const Ref<const VectorXd> &warm_start,const double epsilon=1e-10,const double mu_prox = 1e-7, const int max_iter = 1000, const bool adaptative_rho = true){
     Solver solver;
     VectorXd solution(q.size()), mul_n(l_n.size());
     mul_n = l_n.cwiseProduct(mu);
-    solution = solver.solveQCQP(P,q,mul_n,warm_start,epsilon,mu_prox,max_iter);
+    solution = solver.solveQCQP(P,q,mul_n,warm_start,epsilon,mu_prox,max_iter,adaptative_rho);
     return solution;
 }
 
-std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l_n, const VectorXd &mu, const VectorXd &l, const VectorXd &grad_l, const double &epsilon =1e-10){
+std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP(const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q, const Ref<const VectorXd> &l_n, const Ref<const VectorXd> &mu, const Ref<const VectorXd> &l, const Ref<const VectorXd> &grad_l, const double &epsilon =1e-10){
     Solver solver;
     MatrixXd E1(l_n.size(),l_n.size()),E2(l_n.size(),l_n.size());
     VectorXd mul_n(l_n.size()),gamma(l.size()),blgamma(l.size());
@@ -50,8 +50,8 @@ std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP(const MatrixXd &P, c
 
 PYBIND11_MODULE(pybindings, m) {
     m.doc() = "module solving QCQP and QP with ADMM, and computing the derivatives of the solution using implicit differentiation of KKT optimality conditions";
-    m.def("solveQP", &solveQP, "A function which solves a QP problem with a regularized ADMM algorithm",py::arg("P"), py::arg("q"),py::arg("warm_start"),py::arg("epsilon") = 1e-10,py::arg("mu_prox")= 1e-7,py::arg("max_iter")= 1000 );
-    m.def("solveQCQP", &solveQCQP, "A function which solves a QCQP problem with a regularized ADMM algorithm",py::arg("P"), py::arg("q"), py::arg("l_n"),py::arg("mu"), py::arg("warm_start"),py::arg("epsilon")= 1e-10,py::arg("mu_prox")= 1e-7,py::arg("max_iter")= 1000);
+    m.def("solveQP", &solveQP, "A function which solves a QP problem with a regularized ADMM algorithm",py::arg("P"), py::arg("q"),py::arg("warm_start"),py::arg("epsilon") = 1e-10,py::arg("mu_prox")= 1e-7,py::arg("max_iter")= 1000,py::arg("adaptative_rho")= true, py::return_value_policy::reference_internal );
+    m.def("solveQCQP", &solveQCQP, "A function which solves a QCQP problem with a regularized ADMM algorithm",py::arg("P"), py::arg("q"), py::arg("l_n"),py::arg("mu"), py::arg("warm_start"),py::arg("epsilon")= 1e-10,py::arg("mu_prox")= 1e-7,py::arg("max_iter")= 1000,py::arg("adaptative_rho")= true, py::return_value_policy::reference_internal );
     m.def("solveDerivativesQP", &solveDerivativesQP, "A function which solves the differentiated KKT system of a QP",py::arg("P"), py::arg("q"), py::arg("l"), py::arg("grad_l"), py::arg("epsilon")=1e-10 );
     m.def("solveDerivativesQCQP", &solveDerivativesQCQP, "A function which solves the differentiated KKT system of a QCQP",py::arg("P"), py::arg("q"), py::arg("l_n"),py::arg("mu"), py::arg("l"), py::arg("grad_l"), py::arg("epsilon")=1e-10 );
 }
