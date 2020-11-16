@@ -1,8 +1,9 @@
 #include <iostream>
 #include <Eigen/Dense>
-#include <chrono>
 #include <vector>
 #include "Solver.hpp"
+
+#include <chrono>
 
 using namespace std;
 using namespace Eigen;

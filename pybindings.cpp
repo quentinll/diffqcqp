@@ -6,28 +6,42 @@
 
 #include <Eigen/Dense>
 
+#include <chrono>
+
 namespace py = pybind11;
 
 using namespace Eigen;
 using namespace std;
 
 
-VectorXd solveQP( const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q, const Ref<const VectorXd> &warm_start,const double &epsilon =1e-10, const double &mu_prox = 1e-7, const int &max_iter=1000, const bool adaptative_rho=true){
+VectorXd solveQP( const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<const VectorXd> &q, const py::EigenDRef<const VectorXd> &warm_start,const double epsilon =1e-10, const double mu_prox = 1e-7, const int max_iter=1000, const bool adaptative_rho=true){
+    /*typedef std::chrono::high_resolution_clock Time;
+    typedef std::chrono::duration<float> fsec;
+    auto t0 = Time::now(); */
     Solver solver;
     VectorXd solution(q.size());
     solution = solver.solveQP(P,q,warm_start,epsilon,mu_prox,max_iter,adaptative_rho);
+    /*auto t4 = Time::now(); 
+    fsec fs2 = t4 - t0;
+    std::cout << "total solving QP c++: " << fs2.count() << "s\n";*/
     return solution;
 }
 
-VectorXd solveDerivativesQP(const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q, const Ref<const VectorXd> &l, const Ref<const VectorXd> &grad_l, const double &epsilon =1e-10){
+VectorXd solveDerivativesQP(const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<const VectorXd> &q, const py::EigenDRef<const VectorXd> &l, const py::EigenDRef<const VectorXd> &grad_l, const double epsilon =1e-10){
+    /*typedef std::chrono::high_resolution_clock Time;
+    typedef std::chrono::duration<float> fsec;
+    auto t0 = Time::now(); */
     Solver solver;
     VectorXd gamma(l.size()),bl(l.size());
     gamma = solver.dualFromPrimalQP(P,q,l,epsilon);
     bl = solver.solveDerivativesQP(P,q,l,gamma,grad_l,epsilon);
+    /*auto t4 = Time::now(); 
+    fsec fs2 = t4 - t0;
+    std::cout << "total solving QP derivatives c++: " << fs2.count() << "s\n";*/
     return bl;
 }
 
-VectorXd solveQCQP( const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q,const Ref<const VectorXd> &l_n, const Ref<const VectorXd> &mu, const Ref<const VectorXd> &warm_start,const double epsilon=1e-10,const double mu_prox = 1e-7, const int max_iter = 1000, const bool adaptative_rho = true){
+VectorXd solveQCQP( const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<const VectorXd> &q,const py::EigenDRef<const VectorXd> &l_n, const py::EigenDRef<const VectorXd> &mu, const py::EigenDRef<const VectorXd> &warm_start,const double epsilon=1e-10,const double mu_prox = 1e-7, const int max_iter = 1000, const bool adaptative_rho = true){
     Solver solver;
     VectorXd solution(q.size()), mul_n(l_n.size());
     mul_n = l_n.cwiseProduct(mu);
@@ -35,7 +49,7 @@ VectorXd solveQCQP( const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q,c
     return solution;
 }
 
-std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP(const Ref<const MatrixXd> &P, const Ref<const VectorXd> &q, const Ref<const VectorXd> &l_n, const Ref<const VectorXd> &mu, const Ref<const VectorXd> &l, const Ref<const VectorXd> &grad_l, const double &epsilon =1e-10){
+std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP(const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<const VectorXd> &q, const py::EigenDRef<const VectorXd> &l_n, const py::EigenDRef<const VectorXd> &mu, const py::EigenDRef<const VectorXd> &l, const py::EigenDRef<const VectorXd> &grad_l, const double epsilon =1e-10){
     Solver solver;
     MatrixXd E1(l_n.size(),l_n.size()),E2(l_n.size(),l_n.size());
     VectorXd mul_n(l_n.size()),gamma(l.size()),blgamma(l.size());
