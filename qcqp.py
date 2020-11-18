@@ -41,10 +41,11 @@ class QPFn2(Function):
             #l_2[i,:,0] = torch.from_numpy(solveQP(P[i,:,:].detach().numpy(),q[i,:,:].detach().numpy(), warm_start[i,:,:].detach().numpy(), eps,mu_prox,max_iter, adaptative_rho))
             l_2[i,:,0] = torch.from_numpy(solveQP(Pi,qi, warm_starti, eps,mu_prox,max_iter, adaptative_rho))
             #t0 = time.time()
-            #print("forward comp time qp",timeit.timeit(lambda: torch.from_numpy(solveQP(Pi,qi, warm_starti, eps,mu_prox,max_iter, adaptative_rho)), number=10)/10.)
+            #print("forward comp time qp",timeit.timeit(lambda: l_2[i,:,0] + torch.from_numpy(solveQP(Pi,qi, warm_starti, eps,mu_prox,max_iter, adaptative_rho)), number=10)/10.)
         #durations['iters'] += [t3-t0]
         #print("forward comp time qp", sum(durations["iters"]))
         ctx.save_for_backward(P,q,l_2)
+        #print("save for backward ",timeit.timeit(lambda:ctx.save_for_backward(P,q,l_2), number=1))
         #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
         return l_2
     

@@ -45,7 +45,9 @@ VectorXd solveQCQP( const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<
     Solver solver;
     VectorXd solution(q.size()), mul_n(l_n.size());
     mul_n = l_n.cwiseProduct(mu);
+    //std::cout<< "mu*l_n : " << mul_n << std::endl;
     solution = solver.solveQCQP(P,q,mul_n,warm_start,epsilon,mu_prox,max_iter,adaptative_rho);
+    //std::cout<< "solution qcqp : " << solution << std::endl;
     return solution;
 }
 

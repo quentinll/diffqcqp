@@ -15,6 +15,7 @@ from cvxpylayers.torch import CvxpyLayer
 import cvxpy as cp
 from qpth.qp import QPFunction
 import matplotlib.pyplot as plt
+import osqp
 plt.style.use('bmh')
 
 
@@ -60,7 +61,7 @@ class QCQP_cvxpy(nn.Module):
 
 cvxpy_time = {'forward': [], 'backward':[]}
 qcqp_time = {'forward': [], 'backward':[]}
-n_testqcqp= 100
+n_testqcqp= 10
 for i in tqdm(range(n_testqcqp)):    
     #P = torch.rand((1,8,8),dtype = torch.double)
     P = torch.rand(8)*20 -10
@@ -109,7 +110,8 @@ for i in tqdm(range(n_testqcqp)):
 
 optnet_time = {'forward': [], 'backward':[]}
 qp_time = {'forward': [], 'backward':[]}
-n_testqp= 100
+osqp_time = {'forward': []}
+n_testqp= 3
 for i in tqdm(range(n_testqp)):    
     #P = torch.rand((1,8,8),dtype = torch.double)
     P = torch.rand(8)*20 -10
@@ -117,7 +119,7 @@ for i in tqdm(range(n_testqp)):
     #P = torch.matmul(P, torch.transpose(P,1,2))
     #P = torch.matmul(P, torch.transpose(P,1,2))
     P = torch.nn.parameter.Parameter(P, requires_grad= True)
-    q = torch.rand((1,8,1),dtype = torch.double)*2-1
+    q = torch.rand((1,8,1),dtype = torch.double)*-100000
     q = torch.nn.parameter.Parameter(q, requires_grad= True)
     lr = 0.1
     optimizer2 = optim.Adam([P,q], lr=lr)
@@ -125,7 +127,7 @@ for i in tqdm(range(n_testqp)):
     relu = torch.nn.ReLU()
     threshold = nn.Threshold(threshold=1e-5, value =1e-5)
     target = torch.ones(q.size())
-    qp = QPFn2().apply
+    qp = QPFn2.apply
     warm_start = torch.zeros(q.size())
     t0 = time()
     qp_time['forward']+= [timeit.timeit(lambda:qp(P,q,warm_start,1e-10,1000000),number = 10)/10.]
@@ -152,6 +154,9 @@ for i in tqdm(range(n_testqp)):
     optnet_time['backward']+= [timeit.timeit(lambda:L1.backward(retain_graph=True),number = 10)/10.]
     L1.backward()
     t7 = time()
+    m = osqp.OSQP()
+    m.setup(P=scipy.sparse.csc_matrix(P[0,:,:].detach().numpy()), q=q[0,:,0].detach().numpy(), A=scipy.sparse.csc_matrix(np.eye(q.size()[1])), l=np.zeros(q.size()[1]), u=np.inf*np.ones(q.size()[1]), verbose = False, eps_abs = 1e-10,eps_rel = 1e-20,max_iter = 1000000)
+    osqp_time['forward']+= [timeit.timeit(lambda:m.solve(), number=1)/1.]
     #optnet_time['forward']+= [t5-t4]
     #optnet_time['backward']+= [t7-t6]
 
@@ -159,6 +164,7 @@ optnet_time['mean forward'] = sum(optnet_time['forward'])/n_testqp
 optnet_time['mean backward'] = sum(optnet_time['backward'])/n_testqp
 qp_time['mean forward'] = sum(qp_time['forward'])/n_testqp
 qp_time['mean backward'] = sum(qp_time['backward'])/n_testqp
+osqp_time['mean forward'] = sum(osqp_time['forward'])/n_testqp
 
 optnet_time['error forward'] = np.std(optnet_time['forward'])
 optnet_time['error backward'] = np.std(optnet_time['backward'])
@@ -166,6 +172,8 @@ print(optnet_time['error forward'],np.max(optnet_time['forward']), np.min(optnet
 qp_time['error forward'] = np.std(qp_time['forward'])
 print(qp_time['error forward'], np.max(qp_time['forward']), np.min(qp_time['forward']))
 qp_time['error backward'] = np.std(qp_time['backward'])
+osqp_time['error forward'] = np.std(osqp_time['forward'])
+print("osqp", osqp_time)
 
 cvxpy_time['mean forward'] = sum(cvxpy_time['forward'])/n_testqcqp
 cvxpy_time['mean backward'] = sum(cvxpy_time['backward'])/n_testqcqp
@@ -188,7 +196,7 @@ er2 = [optnet_time['error backward'],qp_time['error backward']]
 r1 = range(len(y1))
 r2 = [x + barWidth for x in r1]
 plt.bar(r1, y1, width = barWidth, color = ['cornflowerblue' for i in y1], linewidth = 2,log = True, label="forward", yerr = er1)
-plt.bar(r2, y2, width = barWidth, color = ['coral' for i in y1], linewidth = 4,log = True,label="backward", yerr = er2)
+plt.bar(r2, y2, width = barWidth, color = ['coral' for i in y2], linewidth = 4,log = True,label="backward", yerr = er2)
 plt.xticks([r + barWidth / 2 for r in range(len(y1))], ['OptNet', 'Ours'])
 plt.ylabel('Runtime (s)')
 plt.title('QP solvers')
