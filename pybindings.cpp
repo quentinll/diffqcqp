@@ -15,29 +15,17 @@ using namespace std;
 
 
 VectorXd solveQP( const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<const VectorXd> &q, const py::EigenDRef<const VectorXd> &warm_start,const double epsilon =1e-10, const double mu_prox = 1e-7, const int max_iter=1000, const bool adaptative_rho=true){
-    /*typedef std::chrono::high_resolution_clock Time;
-    typedef std::chrono::duration<float> fsec;
-    auto t0 = Time::now(); */
     Solver solver;
     VectorXd solution(q.size());
     solution = solver.solveQP(P,q,warm_start,epsilon,mu_prox,max_iter,adaptative_rho);
-    /*auto t4 = Time::now(); 
-    fsec fs2 = t4 - t0;
-    std::cout << "total solving QP c++: " << fs2.count() << "s\n";*/
     return solution;
 }
 
 VectorXd solveDerivativesQP(const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<const VectorXd> &q, const py::EigenDRef<const VectorXd> &l, const py::EigenDRef<const VectorXd> &grad_l, const double epsilon =1e-10){
-    /*typedef std::chrono::high_resolution_clock Time;
-    typedef std::chrono::duration<float> fsec;
-    auto t0 = Time::now(); */
     Solver solver;
     VectorXd gamma(l.size()),bl(l.size());
     gamma = solver.dualFromPrimalQP(P,q,l,epsilon);
     bl = solver.solveDerivativesQP(P,q,l,gamma,grad_l,epsilon);
-    /*auto t4 = Time::now(); 
-    fsec fs2 = t4 - t0;
-    std::cout << "total solving QP derivatives c++: " << fs2.count() << "s\n";*/
     return bl;
 }
 
@@ -45,9 +33,7 @@ VectorXd solveQCQP( const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<
     Solver solver;
     VectorXd solution(q.size()), mul_n(l_n.size());
     mul_n = l_n.cwiseProduct(mu);
-    //std::cout<< "mu*l_n : " << mul_n << std::endl;
     solution = solver.solveQCQP(P,q,mul_n,warm_start,epsilon,mu_prox,max_iter,adaptative_rho);
-    //std::cout<< "solution qcqp : " << solution << std::endl;
     return solution;
 }
 
@@ -57,7 +43,6 @@ std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP(const py::EigenDRef<
     VectorXd mul_n(l_n.size()),gamma(l.size()),blgamma(l.size());
     mul_n = l_n.cwiseProduct(mu);
     gamma = solver.dualFromPrimalQCQP(P,q,mul_n,l,epsilon);
-    //std::cout << " gamma : " << gamma << std::endl;
     std::tie(E1,E2) = solver.getE12QCQP(l_n, mu, gamma);
     blgamma = solver.solveDerivativesQCQP(P,q,mul_n,l,gamma,grad_l,epsilon);
     return std::make_tuple(E1,E2,blgamma);

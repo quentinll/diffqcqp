@@ -61,7 +61,7 @@ class QCQP_cvxpy(nn.Module):
 
 cvxpy_time = {'forward': [], 'backward':[]}
 qcqp_time = {'forward': [], 'backward':[]}
-n_testqcqp= 10
+n_testqcqp= 100
 for i in tqdm(range(n_testqcqp)):    
     #P = torch.rand((1,8,8),dtype = torch.double)
     P = torch.rand(8)*20 -10
@@ -111,7 +111,7 @@ for i in tqdm(range(n_testqcqp)):
 optnet_time = {'forward': [], 'backward':[]}
 qp_time = {'forward': [], 'backward':[]}
 osqp_time = {'forward': []}
-n_testqp= 3
+n_testqp= 100
 for i in tqdm(range(n_testqp)):    
     #P = torch.rand((1,8,8),dtype = torch.double)
     P = torch.rand(8)*20 -10
@@ -156,7 +156,7 @@ for i in tqdm(range(n_testqp)):
     t7 = time()
     m = osqp.OSQP()
     m.setup(P=scipy.sparse.csc_matrix(P[0,:,:].detach().numpy()), q=q[0,:,0].detach().numpy(), A=scipy.sparse.csc_matrix(np.eye(q.size()[1])), l=np.zeros(q.size()[1]), u=np.inf*np.ones(q.size()[1]), verbose = False, eps_abs = 1e-10,eps_rel = 1e-20,max_iter = 1000000)
-    osqp_time['forward']+= [timeit.timeit(lambda:m.solve(), number=1)/1.]
+    #osqp_time['forward']+= [timeit.timeit(lambda:m.solve(), number=1)/1.]
     #optnet_time['forward']+= [t5-t4]
     #optnet_time['backward']+= [t7-t6]
 
@@ -195,6 +195,7 @@ er1 = [optnet_time['error forward'],qp_time['error forward']]
 er2 = [optnet_time['error backward'],qp_time['error backward']]
 r1 = range(len(y1))
 r2 = [x + barWidth for x in r1]
+plt.figure()
 plt.bar(r1, y1, width = barWidth, color = ['cornflowerblue' for i in y1], linewidth = 2,log = True, label="forward", yerr = er1)
 plt.bar(r2, y2, width = barWidth, color = ['coral' for i in y2], linewidth = 4,log = True,label="backward", yerr = er2)
 plt.xticks([r + barWidth / 2 for r in range(len(y1))], ['OptNet', 'Ours'])
@@ -210,6 +211,7 @@ er1 = [cvxpy_time['error forward'],qcqp_time['error forward']]
 er2 = [cvxpy_time['error backward'],qcqp_time['error backward']]
 r1 = range(len(y1))
 r2 = [x + barWidth for x in r1]
+plt.figure()
 plt.bar(r1, y1, width = barWidth, color = ['cornflowerblue' for i in y1], linewidth = 2,log = True, label="forward", yerr = er1)
 plt.bar(r2, y2, width = barWidth, color = ['coral' for i in y1], linewidth = 4,log = True,label="backward", yerr = er2)
 plt.xticks([r + barWidth / 2 for r in range(len(y1))], ['cvxpylayers', 'Ours'])
