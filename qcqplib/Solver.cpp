@@ -59,7 +59,7 @@ double Solver::power_iteration(const MatrixXd &A,const  double epsilon = 1e-10, 
 }
 
 VectorXd Solver::solveQP( MatrixXd P, const VectorXd &q, const VectorXd &warm_start, const double epsilon =1e-10, const double mu_prox = 1e-7, const int max_iter=1000,const bool adaptative_rho=true){
-    
+    //solving a QP using ADMM algorithm
     double L, rho, res_dual, res_prim, mu_thresh, tau_inc, tau_dec, alpha_relax;
     mu_thresh = 10.; alpha_relax = 1.5;
     MatrixXd Pinv(P.rows(), P.cols());
