@@ -1,8 +1,8 @@
 
 # diffqcqp
-Implementations of QP/QCQP solvers using ADMM algorithm and their analytical derivatives. This implementation is used in the paper "Differentiable simulation for physical system identification" (Q. Le Lidec, I. Kalevatykh, I. Laptev, C. Schmid and J. Carpentier) (https://hal.archives-ouvertes.fr/hal-03025616/). 
+Implementations of QP/QCQP solvers using ADMM algorithm and their analytical derivatives. This implementation is used in the paper "Differentiable simulation for physical system identification" (Q. Le Lidec, I. Kalevatykh, I. Laptev, C. Schmid and J. Carpentier) (https://hal.archives-ouvertes.fr/hal-03025616/). A video presenting our work is available at: https://youtu.be/d248IWMLW9o
 
-We propose C++ functions and their python interface (which can easily be integrated into any Automatic Differentiation such as PyTorch or Tensorflow) that allows solving the following QPs/QCQPs:
+We propose C++ functions and their python interface (which can easily be integrated into any Automatic Differentiation library such as PyTorch or Tensorflow) that allows solving the following QPs/QCQPs:
 ```
 minimize        0.5 x' P x + q' x
 
@@ -38,12 +38,9 @@ P = torch.nn.parameter.Parameter(P, requires_grad= True)
 q = torch.rand((B,N,1),dtype = torch.double) #vector of the QP objective function
 q = torch.nn.parameter.Parameter(q, requires_grad= True)
 
-
-
 eps = 1e-7 #precision of the solver
 warm_start = torch.zeros(q.size()) #vector used to warm-start the QP solver
 max_iter = 1000 #maximum iterations for the solver 
-
 
 qpsolver = QPFn2.apply
 optimizer = torch.optim.Adam([P,q])
