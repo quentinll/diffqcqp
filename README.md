@@ -82,4 +82,7 @@ This work can be cited with:
 }
 ```
 
+## Acknowledgements
+This work was partially supported by PRAIRIE 3IA Institute and the HPC resources from GENCI-IDRIS.
+
 
