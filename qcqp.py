@@ -14,7 +14,7 @@ torch.set_default_dtype(torch.double)
 
 import torch.autograd.profiler as profiler
 
-from build.pybindings import solveQP, solveQCQP, solveDerivativesQP, solveDerivativesQCQP
+from pybindings import solveQP, solveQCQP, solveDerivativesQP, solveDerivativesQCQP
 
 import time
 import timeit
@@ -44,7 +44,7 @@ class QPFn2(Function):
         dl = torch.zeros(l.size())
         Pi,qi,li,grad_li = torch.zeros(1,P.size()[1],P.size()[2]),torch.zeros(1,P.size()[2],1),torch.zeros(1,P.size()[2],1),torch.zeros(1,P.size()[2],1)  
         for i in range(batch_size):
-            Pi,qi,li, grad_li = P[i,:,:].detach().numpy(),q[i,:,:].detach().numpy(), li[i,:,:].detach().numpy(),grad_li[i,:,:].detach().numpy()
+            Pi,qi,li, grad_li = P[i,:,:].detach().numpy(),q[i,:,:].detach().numpy(), l[i,:,:].detach().numpy(),grad_l[i,:,:].detach().numpy()
             dl[i,:,0] = torch.from_numpy(solveDerivativesQP(Pi,qi,li,grad_li))
         if ctx.needs_input_grad[0]:
             grad_P = -torch.bmm(dl, torch.transpose(l,1,2))

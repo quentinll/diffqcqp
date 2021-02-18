@@ -134,27 +134,46 @@ VectorXd Solver::dualFromPrimalQP(const MatrixXd &P, const VectorXd &q, const Ve
 }
 
 VectorXd Solver::solveDerivativesQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l, const VectorXd &gamma, const VectorXd &grad_l, const double &epsilon){ //solves the system obtained from differentiating the KKT optimality conditions
-    std::vector<int> not_null;
+    std::vector<int> not_null; //contains index of non null coordinates of gamma
+    std::vector<int> null_idx; //contains index of null coordinates of gamma
     for (int i = 0; i<gamma.size(); i++){
-        if(gamma(i)>1e-10){
+        if(gamma(i)<-1e-10){
+       // if(gamma(i)>1e-10){
             not_null.push_back(i);
+        }
+        else{
+            null_idx.push_back(i);
         }
     }
     MatrixXd B = gamma.asDiagonal();
     MatrixXd C = MatrixXd::Identity(l.size(), l.size());
-    MatrixXd A_tild(not_null.size(), not_null.size()), B_tild(not_null.size(),l.size()), C_tild(l.size(),not_null.size()), D_tild(l.size(),l.size());
+    //MatrixXd A_tild(not_null.size(), not_null.size()), B_tild(not_null.size(),l.size()), C_tild(l.size(),not_null.size()), D_tild(l.size(),l.size());
+    MatrixXd A_tild(not_null.size(), not_null.size()), B_tild(not_null.size(),null_idx.size()), C_tild(null_idx.size(),not_null.size()), D_tild(null_idx.size(),null_idx.size());
     A_tild = MatrixXd::Zero(not_null.size(), not_null.size());
     for(int i = 0; i< not_null.size();i++){
         A_tild(i,i) = l(not_null[i]);
-        B_tild.row(i) = B.row(not_null[i]);
-        C_tild.col(i) = C.col(not_null[i]);
+        for(int j = 0; j< null_idx.size();j++){
+            B_tild(i,j) = B(not_null[i],null_idx[j]); 
+            C_tild(j,i) = C(null_idx[j],not_null[i]);
+        }
+        //B_tild.row(i) = B.row(not_null[i]);
+        //C_tild.col(i) = C.col(not_null[i]);
     }
-    D_tild = P;
-    MatrixXd A(l.size()+not_null.size(),l.size()+not_null.size());
+    for(int i = 0; i< null_idx.size();i++){
+        for(int j = 0; j< null_idx.size();j++){
+            D_tild(i,j) = P(null_idx[i],null_idx[j]);
+        }
+    }
+    //D_tild = P;
+    //MatrixXd A(l.size()+not_null.size(),l.size()+not_null.size());
+    MatrixXd A(l.size(),l.size());
     A.topLeftCorner(not_null.size(),not_null.size()) = A_tild;
-    A.topRightCorner(not_null.size(),l.size()) = B_tild;
-    A.bottomLeftCorner(l.size(),not_null.size()) = C_tild;
-    A.bottomRightCorner(l.size(),l.size()) = D_tild;
+    //A.topRightCorner(not_null.size(),l.size()) = B_tild;
+    A.topRightCorner(not_null.size(),null_idx.size()) = B_tild;
+    //A.bottomLeftCorner(l.size(),not_null.size()) = C_tild;
+    A.bottomLeftCorner(null_idx.size(),not_null.size()) = C_tild;
+    //A.bottomRightCorner(l.size(),l.size()) = D_tild;
+    A.bottomRightCorner(null_idx.size(),null_idx.size()) = D_tild;
     A.transposeInPlace();
     VectorXd dd(A.cols());
     for(int i = 0 ; i< dd.size(); i++){
@@ -162,13 +181,15 @@ VectorXd Solver::solveDerivativesQP(const MatrixXd &P, const VectorXd &q, const 
             dd(i) = 0.;
         }
         else{
-            dd(i) = grad_l(i-not_null.size());
+            //dd(i) = grad_l(i-not_null.size());
+            dd(i) = grad_l(null_idx[i-not_null.size()]);
         }
     }
     VectorXd b(A.cols());
     b = Solver::iterative_refinement(A,dd);
     VectorXd bl(l.size());
-    for(int i = 0; i <l.size();i++){
+    //for(int i = 0; i <l.size();i++){
+    for(int i = 0; i <null_idx.size();i++){
         bl(i) = b(not_null.size()+i);
     }
     return bl;
@@ -432,21 +453,26 @@ int Solver::test(){
 
     double mean,mean2, mean3;
     mean = 0;mean2 = 0.; mean3 = 0.;
-    int ntest = 1000;
+    int ntest = 1;
     std::srand((unsigned int) time(0));
-    int test_dimension = 6;
+    int test_dimension = 1;
     MatrixXd G(2*test_dimension,2*test_dimension);
-    VectorXd g(test_dimension);
-    VectorXd grad_l3 = VectorXd::Ones(2*test_dimension);
+    VectorXd g(2*test_dimension),delt_g(2*test_dimension);
+    VectorXd grad_l3 = VectorXd::Zero(2*test_dimension);
+    grad_l3[0] = 1.; 
     VectorXd gamma3(2*test_dimension);
     for (int i = 0; i< ntest; i++){
         //std::cout<< "prob id : " << i << std::endl;
-        g = VectorXd::Random(2*test_dimension)*10;
-        g = g.array().exp();
+        g = (VectorXd::Random(2*test_dimension)+VectorXd::Ones(2*test_dimension));
+        g = g.array();
+        delt_g = VectorXd::Zero(2*test_dimension);
+        delt_g[0] = 1e-5;
         G = g.asDiagonal();
         //G = MatrixXd::Random(2*test_dimension,2*test_dimension);
         //G = G*G.transpose();
         g = VectorXd::Random(2*test_dimension);
+        std::cout<< "G: " << G << "\n";
+        std::cout<< "g: " << g << "\n";
         SelfAdjointEigenSolver<MatrixXd> eigensolver(G);
         if (eigensolver.info() != Success) abort();
         //cout << "The eigenvalues of G are:\n" << eigensolver.eigenvalues() << endl;
@@ -458,10 +484,19 @@ int Solver::test(){
         //sol3 = Solver::solveQP(G,g,warm_start3,1e-10,1e-7,10000);
         auto t1 = Time::now();
         //sol3 = Solver::solveQCQP(G,g,l_ng,warm_start3,1e-10,1e-7,100000);
+        VectorXd sol3(2*test_dimension);
         sol3 = Solver::solveQP(G,g,warm_start3,1e-10,1e-7,100000, true );
+        std::cout<< "sol: " << sol3 << "\n";
+        VectorXd sol3_bis(2*test_dimension);
+        sol3_bis = Solver::solveQP(G,g+delt_g,warm_start3,1e-10,1e-7,100000, true );
         auto t2 = Time::now();
         gamma3 = Solver::dualFromPrimalQP(G,g,sol3,1e-10);
-        Solver::solveDerivativesQP(G,g,sol3,gamma,grad_l3,1e-10);
+        std::cout<< "gamma: " << gamma3 << "\n";
+        std::cout<< "KKT: " << G*sol3+g + gamma3 << "\n";
+        VectorXd bl(sol3.size());
+        bl = Solver::solveDerivativesQP(G,g,sol3,gamma3,grad_l3,1e-10);
+        std::cout<< "grad q " << -bl<< "\n";
+        std::cout<< "num diff q " << (sol3_bis-sol3)[0]/1e-5 << "\n";
         auto t3 = Time::now();
         sol3 = Solver::solveQCQP(G,g,l_ng2,warm_start3,1e-10,1e-7,100000);
         auto t33 = Time::now();

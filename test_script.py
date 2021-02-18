@@ -9,6 +9,7 @@ import torch
 torch.set_default_dtype(torch.double)
 import torch.nn as nn
 from torch.autograd import Function, Variable
+from torch.autograd.functional import jacobian
 from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 from cvxpylayers.torch import CvxpyLayer
@@ -50,9 +51,8 @@ class QCQP_cvxpy(nn.Module):
         P_sqrt = scipy.linalg.sqrtm(P.detach().numpy().copy()[0,:,:])
         P_sqrt = torch.tensor(P_sqrt).unsqueeze(0)
         #L = torch.transpose(torch.cholesky(P+k*torch.eye(P.size()[1])),1,2)
-        #print(L.size(), q.size(), mu.size(), l_n.size())
         solution, = cvxpylayer(P_sqrt,q.squeeze(2),(mu*l_n).squeeze(2),solver_args={'eps': self.eps,'max_iters':self.max_iter})
-        #solution, = cvxpylayer(P,q.squeeze(2),(mu*l_n).squeeze(2),solver_args={'eps': self.eps,'max_iters':self.max_iter})
+        solution, = cvxpylayer(P,q.squeeze(2),(mu*l_n).squeeze(2),solver_args={'eps': self.eps,'max_iters':self.max_iter})
         #print(solution)
         return solution
 
@@ -61,11 +61,12 @@ class QCQP_cvxpy(nn.Module):
 
 cvxpy_time = {'forward': [], 'backward':[]}
 qcqp_time = {'forward': [], 'backward':[]}
-n_testqcqp= 100
+n_testqcqp= 0
 for i in tqdm(range(n_testqcqp)):    
     #P = torch.rand((1,8,8),dtype = torch.double)
     P = torch.rand(8)*20 -10
     P = torch.diag(torch.exp(P)).unsqueeze(0)
+    #P = torch.diag(P).unsqueeze(0)
     #P = torch.matmul(P, torch.transpose(P,1,2))
     P = torch.nn.parameter.Parameter(P, requires_grad= True)
     q = torch.rand((1,8,1),dtype = torch.double)*2-1
@@ -93,8 +94,8 @@ for i in tqdm(range(n_testqcqp)):
     t2 = time()
     L1.backward()
     t3 = time()
-    #qcqp_time['forward']+= [t1-t0]
-    #qcqp_time['backward']+= [t3-t2]
+    qcqp_time['forward']+= [t1-t0]
+    qcqp_time['backward']+= [t3-t2]
     qcqp2 = QCQP_cvxpy(eps=1e-10,max_iter = 1000000)
     t4 = time()
     l1 = qcqp2(P,q,l_n,mu)
@@ -111,36 +112,37 @@ for i in tqdm(range(n_testqcqp)):
 optnet_time = {'forward': [], 'backward':[]}
 qp_time = {'forward': [], 'backward':[]}
 osqp_time = {'forward': []}
-n_testqp= 100
+n_testqp= 1
 for i in tqdm(range(n_testqp)):    
     #P = torch.rand((1,8,8),dtype = torch.double)
     P = torch.rand(8)*20 -10
+    #P = P.unsqueeze(0)
+    #P = torch.rand(8)*10
+    #P = torch.diag(P).unsqueeze(0)
     P = torch.diag(torch.exp(P)).unsqueeze(0)
     #P = torch.matmul(P, torch.transpose(P,1,2))
     #P = torch.matmul(P, torch.transpose(P,1,2))
     P = torch.nn.parameter.Parameter(P, requires_grad= True)
-    q = torch.rand((1,8,1),dtype = torch.double)*-100000
+    q = torch.rand((1,8,1),dtype = torch.double)*2-1
     q = torch.nn.parameter.Parameter(q, requires_grad= True)
     lr = 0.1
     optimizer2 = optim.Adam([P,q], lr=lr)
     loss = nn.MSELoss()
-    relu = torch.nn.ReLU()
-    threshold = nn.Threshold(threshold=1e-5, value =1e-5)
     target = torch.ones(q.size())
     qp = QPFn2.apply
     warm_start = torch.zeros(q.size())
     t0 = time()
     qp_time['forward']+= [timeit.timeit(lambda:qp(P,q,warm_start,1e-10,1000000),number = 10)/10.]
     l1= qp(P,q,warm_start,1e-10,1000000)
+    #print(jacobian(lambda x,y: qp(x,y, warm_start,1e-10,1000000), (P,q))) #get jacobian of the solution wrt parameters of QP
     t1= time()
     L1 = loss(l1, target)
     optimizer2.zero_grad()
     qp_time['backward']+= [timeit.timeit(lambda:L1.backward(retain_graph=True),number = 10)/10.]
     t2 = time()
     L1.backward()
-    t3 = time()
-    #qp_time['forward']+= [t1-t0]
-    #qp_time['backward']+= [t3-t2]
+    qp_time['forward']+= [t1-t0]
+    qp_time['backward']+= [t3-t2]
     e = Variable(torch.Tensor())
     u = torch.zeros(q.size(), requires_grad = False, dtype = torch.double).squeeze(2)
     B = -torch.eye(q.size()[1], requires_grad = False, dtype = torch.double).unsqueeze(0)
@@ -156,9 +158,9 @@ for i in tqdm(range(n_testqp)):
     t7 = time()
     m = osqp.OSQP()
     m.setup(P=scipy.sparse.csc_matrix(P[0,:,:].detach().numpy()), q=q[0,:,0].detach().numpy(), A=scipy.sparse.csc_matrix(np.eye(q.size()[1])), l=np.zeros(q.size()[1]), u=np.inf*np.ones(q.size()[1]), verbose = False, eps_abs = 1e-10,eps_rel = 1e-20,max_iter = 1000000)
-    #osqp_time['forward']+= [timeit.timeit(lambda:m.solve(), number=1)/1.]
-    #optnet_time['forward']+= [t5-t4]
-    #optnet_time['backward']+= [t7-t6]
+    osqp_time['forward']+= [timeit.timeit(lambda:m.solve(), number=1)/1.]
+    optnet_time['forward']+= [t5-t4]
+    optnet_time['backward']+= [t7-t6]
 
 optnet_time['mean forward'] = sum(optnet_time['forward'])/n_testqp
 optnet_time['mean backward'] = sum(optnet_time['backward'])/n_testqp
