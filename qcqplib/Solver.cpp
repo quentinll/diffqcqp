@@ -187,10 +187,10 @@ VectorXd Solver::solveDerivativesQP(const MatrixXd &P, const VectorXd &q, const 
     }
     VectorXd b(A.cols());
     b = Solver::iterative_refinement(A,dd);
-    VectorXd bl(l.size());
+    VectorXd bl = VectorXd::Zero(l.size());
     //for(int i = 0; i <l.size();i++){
     for(int i = 0; i <null_idx.size();i++){
-        bl(i) = b(not_null.size()+i);
+        bl(null_idx[i]) = b(not_null.size() +i );
     }
     return bl;
 }
@@ -467,9 +467,9 @@ int Solver::test(){
         g = g.array();
         delt_g = VectorXd::Zero(2*test_dimension);
         delt_g[0] = 1e-5;
-        G = g.asDiagonal();
-        //G = MatrixXd::Random(2*test_dimension,2*test_dimension);
-        //G = G*G.transpose();
+        //G = g.asDiagonal();
+        G = MatrixXd::Random(2*test_dimension,2*test_dimension);
+        G = G*G.transpose();
         g = VectorXd::Random(2*test_dimension);
         std::cout<< "G: " << G << "\n";
         std::cout<< "g: " << g << "\n";
@@ -492,7 +492,7 @@ int Solver::test(){
         auto t2 = Time::now();
         gamma3 = Solver::dualFromPrimalQP(G,g,sol3,1e-10);
         std::cout<< "gamma: " << gamma3 << "\n";
-        std::cout<< "KKT: " << G*sol3+g + gamma3 << "\n";
+        //std::cout<< "KKT: " << G*sol3+g + gamma3 << "\n";
         VectorXd bl(sol3.size());
         bl = Solver::solveDerivativesQP(G,g,sol3,gamma3,grad_l3,1e-10);
         std::cout<< "grad q " << -bl<< "\n";
