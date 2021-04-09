@@ -120,11 +120,13 @@ for i in tqdm(range(n_testqp)):
     #P = torch.rand(8)*10
     #P = torch.diag(P).unsqueeze(0)
     P = torch.diag(torch.exp(P)).unsqueeze(0)
-    #P = torch.matmul(P, torch.transpose(P,1,2))
-    #P = torch.matmul(P, torch.transpose(P,1,2))
+    P = torch.matmul(P, torch.transpose(P,1,2))
+    P = torch.matmul(P, torch.transpose(P,1,2))
     P = torch.nn.parameter.Parameter(P, requires_grad= True)
     q = torch.rand((1,8,1),dtype = torch.double)*2-1
     q = torch.nn.parameter.Parameter(q, requires_grad= True)
+    #P = torch.tensor([[[0.4979, 0.3295],[0.3295, 0.2432]]], requires_grad= True)
+    #q = torch.tensor([[[-0.3661],[-0.9514]]], requires_grad = True)
     lr = 0.1
     optimizer2 = optim.Adam([P,q], lr=lr)
     loss = nn.MSELoss()
@@ -132,13 +134,14 @@ for i in tqdm(range(n_testqp)):
     qp = QPFn2.apply
     warm_start = torch.zeros(q.size())
     t0 = time()
-    qp_time['forward']+= [timeit.timeit(lambda:qp(P,q,warm_start,1e-10,1000000),number = 10)/10.]
+    #qp_time['forward']+= [timeit.timeit(lambda:qp(P,q,warm_start,1e-10,1000000),number = 10)/10.]
     l1= qp(P,q,warm_start,1e-10,1000000)
+    l1[0,1].backward()
     #print(jacobian(lambda x,y: qp(x,y, warm_start,1e-10,1000000), (P,q))) #get jacobian of the solution wrt parameters of QP
     t1= time()
     L1 = loss(l1, target)
     optimizer2.zero_grad()
-    qp_time['backward']+= [timeit.timeit(lambda:L1.backward(retain_graph=True),number = 10)/10.]
+    #qp_time['backward']+= [timeit.timeit(lambda:L1.backward(retain_graph=True),number = 10)/10.]
     t2 = time()
     L1.backward()
     qp_time['forward']+= [t1-t0]

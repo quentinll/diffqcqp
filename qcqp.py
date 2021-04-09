@@ -26,7 +26,7 @@ class QPFn2(Function):
         batch_size = q.size()[0]
         l_2 =torch.zeros(q.size())
         adaptative_rho =True
-        Pi,qi,warm_starti = torch.zeros(1,P.size()[1],P.size()[2]),torch.zeros(1,P.size()[2],1),torch.zeros(1,P.size()[2],1) 
+        Pi, qi, warm_starti = torch.zeros(1,P.size()[1],P.size()[2]),torch.zeros(1,P.size()[2],1),torch.zeros(1,P.size()[2],1) 
         for i in range(batch_size):
             Pi,qi,warm_starti = P[i,:,:].detach().numpy(),q[i,:,:].detach().numpy(), warm_start[i,:,:].detach().numpy()
             l_2[i,:,0] = torch.from_numpy(solveQP(Pi,qi, warm_starti, eps,mu_prox,max_iter, adaptative_rho))

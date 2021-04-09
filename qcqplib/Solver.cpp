@@ -456,10 +456,10 @@ int Solver::test(){
     int ntest = 1;
     std::srand((unsigned int) time(0));
     int test_dimension = 1;
-    MatrixXd G(2*test_dimension,2*test_dimension);
+    MatrixXd G(2*test_dimension,2*test_dimension),delt_G(2*test_dimension,2*test_dimension);
     VectorXd g(2*test_dimension),delt_g(2*test_dimension);
     VectorXd grad_l3 = VectorXd::Zero(2*test_dimension);
-    grad_l3[0] = 1.; 
+    grad_l3[1] = 1.; 
     VectorXd gamma3(2*test_dimension);
     for (int i = 0; i< ntest; i++){
         //std::cout<< "prob id : " << i << std::endl;
@@ -471,6 +471,8 @@ int Solver::test(){
         G = MatrixXd::Random(2*test_dimension,2*test_dimension);
         G = G*G.transpose();
         g = VectorXd::Random(2*test_dimension);
+        G(0,0) = 0.4979; G(0,1) = 0.3295; G(1,0) = 0.3295; G(1,1) = 0.2432;
+        g[0] =-0.3661;g[1]=-0.9514;
         std::cout<< "G: " << G << "\n";
         std::cout<< "g: " << g << "\n";
         SelfAdjointEigenSolver<MatrixXd> eigensolver(G);
@@ -488,15 +490,28 @@ int Solver::test(){
         sol3 = Solver::solveQP(G,g,warm_start3,1e-10,1e-7,100000, true );
         std::cout<< "sol: " << sol3 << "\n";
         VectorXd sol3_bis(2*test_dimension);
-        sol3_bis = Solver::solveQP(G,g+delt_g,warm_start3,1e-10,1e-7,100000, true );
         auto t2 = Time::now();
         gamma3 = Solver::dualFromPrimalQP(G,g,sol3,1e-10);
         std::cout<< "gamma: " << gamma3 << "\n";
-        //std::cout<< "KKT: " << G*sol3+g + gamma3 << "\n";
+        std::cout<< "KKT: " << G*sol3+g + gamma3 << "\n";
         VectorXd bl(sol3.size());
         bl = Solver::solveDerivativesQP(G,g,sol3,gamma3,grad_l3,1e-10);
         std::cout<< "grad q " << -bl<< "\n";
-        std::cout<< "num diff q " << (sol3_bis-sol3)[0]/1e-5 << "\n";
+        for (int j = 0; j< 2*test_dimension; j++){
+            delt_g = VectorXd::Zero(2*test_dimension);
+            delt_g[j] = 1e-5;
+            sol3_bis = Solver::solveQP(G,g+delt_g,warm_start3,1e-10,1e-7,100000, true );
+            std::cout<< "num diff q "<< j << ": " << (sol3_bis-sol3)[1]/1e-5 << "\n";
+        }
+        std::cout<< "grad P " << -bl*sol3.transpose()<< "\n";
+        for (int j = 0; j< 2*test_dimension; j++){
+            for (int k = 0; k< 2*test_dimension; k++){
+                delt_G = MatrixXd::Zero(2*test_dimension,2*test_dimension);
+                delt_G(j,k) = 1e-5;
+                sol3_bis = Solver::solveQP(G+delt_G,g,warm_start3,1e-10,1e-7,100000, true );
+                std::cout<< "num diff P "<< j << k << ": " << (sol3_bis-sol3)[1]/1e-5 << "\n";
+            }
+        }
         auto t3 = Time::now();
         sol3 = Solver::solveQCQP(G,g,l_ng2,warm_start3,1e-10,1e-7,100000);
         auto t33 = Time::now();
