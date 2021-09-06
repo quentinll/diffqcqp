@@ -4,7 +4,8 @@ project(diffsolvers VERSION 0.1.0)
 include(CTest)
 enable_testing()
 
-find_package(pybind11 REQUIRED)
+# find_package(pybind11 REQUIRED)
+add_subdirectory(pybind11)
 find_package(Eigen3 3.3 REQUIRED)
 find_package(Python3 3.7.6 REQUIRED)
 
