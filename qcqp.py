@@ -20,7 +20,6 @@ import time
 import timeit
 
 class QPFn2(Function):
-    
     @staticmethod
     def forward(ctx,P,q,warm_start,eps,max_iter,mu_prox =1e-7):
         batch_size = q.size()[0]

@@ -5,7 +5,9 @@ set(CMAKE_CXX_STANDARD 11)
 include(CTest)
 enable_testing()
 
-find_package(pybind11 REQUIRED)
+set(CMAKE_CXX_STANDARD 11)
+
+add_subdirectory(pybind11)
 find_package(Eigen3 3.3 REQUIRED)
 find_package(Python3 3.7.6 REQUIRED)
 
