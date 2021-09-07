@@ -8,8 +8,9 @@ enable_testing()
 set(CMAKE_CXX_STANDARD 11)
 
 add_subdirectory(pybind11)
-find_package(Eigen3 3.3 REQUIRED)
-find_package(Python3 3.7.6 REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(Python3 REQUIRED)
+ADD_DEFINITIONS(-DEIGEN_INITIALIZE_MATRICES_BY_NAN)
 
 add_subdirectory(qcqplib)
 
