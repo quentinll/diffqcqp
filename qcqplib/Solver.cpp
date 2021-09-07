@@ -310,13 +310,6 @@ VectorXd Solver::dualFromPrimalQCQP(const MatrixXd &P, const VectorXd &q, const 
 }
 
 VectorXd Solver::solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l_n, const VectorXd &l, const VectorXd &gamma, const VectorXd &grad_l, const double epsilon){
-    std::cout << "P:\n" << P << std::endl;
-    std::cout << "q:\n" << q.transpose() << std::endl;
-    std::cout << "l_n:\n" << l_n.transpose() << std::endl;
-    std::cout << "l:\n" << l.transpose() << std::endl;
-    std::cout << "gamma:\n" << gamma.transpose() << std::endl;
-    std::cout << "grad_l:\n" << grad_l.transpose() << std::endl;
-
     int nb_contacts = l_n.size();
     VectorXd slack(nb_contacts);
     slack = -l_n.cwiseProduct(l_n);
@@ -351,10 +344,6 @@ VectorXd Solver::solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, cons
     }
     D_tild = D_tild+P;
     MatrixXd A(l.size()+not_null.size(),l.size()+not_null.size());
-    std::cout << "A_tild:\n" << A_tild << std::endl;
-    std::cout << "B_tild:\n" << B_tild << std::endl;
-    std::cout << "C_tild:\n" << C_tild << std::endl;
-    std::cout << "D_tild:\n" << D_tild << std::endl;
     A.topLeftCorner(not_null.size(),not_null.size()) = A_tild;
     A.topRightCorner(not_null.size(),l.size()) = B_tild;
     A.bottomLeftCorner(l.size(),not_null.size()) = C_tild;
@@ -371,10 +360,7 @@ VectorXd Solver::solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, cons
         }
     }
     VectorXd b(A.cols());
-    std::cout << "A:\n" << A << std::endl;
-    std::cout << "dd:\n" << dd.transpose() << std::endl;
     b = Solver::iterative_refinement(A,dd);
-    std::cout << "b: " << b.transpose() << std::endl;
     VectorXd blgamma = VectorXd::Zero(gamma.size()+l.size());
     for(int i = 0; i<b.size();i++){
         if(i<not_null.size()){
