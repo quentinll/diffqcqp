@@ -12,12 +12,12 @@ Solver::Solver(){
     prob_id = 1;
 }
 
-VectorXd Solver::iterative_refinement(const Ref<const MatrixXd> &A,const VectorXd &b,const double mu_ir = 1e-7,const double epsilon = 1e-10,const int max_iter = 10){ //solves the system Ax=b using iterative refinement
+VectorXd Solver::iterative_refinement(const Ref<const MatrixXd> A,const VectorXd &b,const double mu_ir = 1e-7,const double epsilon = 1e-10,const int max_iter = 10){ //solves the system Ax=b using iterative refinement
     VectorXd Ab(A.cols()), delta(A.cols());
     MatrixXd AA_tild(A.cols(), A.cols()),AA_tild_inv(A.cols(), A.cols());
     VectorXd x = VectorXd::Zero(A.cols());
-    Ab = A.transpose()*b;
-    AA_tild = A.transpose()*A;
+    Ab.noalias() = A.transpose()*b;
+    AA_tild.noalias() = A.transpose()*A;
     AA_tild += mu_ir*MatrixXd::Identity(AA_tild.rows(),AA_tild.cols());
     AA_tild_inv.setIdentity();
     AA_tild.llt().solveInPlace(AA_tild_inv);
@@ -104,7 +104,7 @@ VectorXd Solver::solveQP( MatrixXd P, const VectorXd &q, const VectorXd &warm_st
                 cpt++;
             }
             else if (res_dual > mu_thresh*res_prim){//rho needs to be decreased
-                if( cpt% 5 == 0){ 
+                if( cpt% 5 == 0){
                     if (rho_up ==1){
                         tau_inc = 1+.8*(tau_inc-1);
                         tau_dec = 1+.8*(tau_dec-1);
@@ -153,7 +153,7 @@ VectorXd Solver::solveDerivativesQP(const MatrixXd &P, const VectorXd &q, const 
     for(int i = 0; i< not_null.size();i++){
         A_tild(i,i) = l(not_null[i]);
         for(int j = 0; j< null_idx.size();j++){
-            B_tild(i,j) = B(not_null[i],null_idx[j]); 
+            B_tild(i,j) = B(not_null[i],null_idx[j]);
             C_tild(j,i) = C(null_idx[j],not_null[i]);
         }
         //B_tild.row(i) = B.row(not_null[i]);
@@ -254,7 +254,7 @@ VectorXd Solver::solveQCQP( MatrixXd P, const VectorXd &q, const VectorXd &l_n, 
                     rho_up= 1;
                 }
                 cpt++;
-                
+
             }
             else if ( res_dual > mu_thresh*res_prim){
                 if(cpt%5 ==0){
@@ -309,13 +309,20 @@ VectorXd Solver::dualFromPrimalQCQP(const MatrixXd &P, const VectorXd &q, const 
     return gamma;
 }
 
-VectorXd Solver::solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l_n, const VectorXd &l, const VectorXd &gamma, const VectorXd &grad_l, const double &epsilon){
+VectorXd Solver::solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l_n, const VectorXd &l, const VectorXd &gamma, const VectorXd &grad_l, const double epsilon){
+    std::cout << "P:\n" << P << std::endl;
+    std::cout << "q:\n" << q.transpose() << std::endl;
+    std::cout << "l_n:\n" << l_n.transpose() << std::endl;
+    std::cout << "l:\n" << l.transpose() << std::endl;
+    std::cout << "gamma:\n" << gamma.transpose() << std::endl;
+    std::cout << "grad_l:\n" << grad_l.transpose() << std::endl;
+
     int nb_contacts = l_n.size();
     VectorXd slack(nb_contacts);
     slack = -l_n.cwiseProduct(l_n);
     double norm_l2d;
     VectorXd l_2d(2);
-    MatrixXd C(2*nb_contacts,nb_contacts);
+    MatrixXd C = MatrixXd::Zero(2*nb_contacts,nb_contacts);
     MatrixXd D_tild = MatrixXd::Zero(2*nb_contacts, 2*nb_contacts);
     for(int i = 0; i<nb_contacts; i++){
         l_2d(0) = l(2*i);
@@ -335,7 +342,8 @@ VectorXd Solver::solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, cons
     }
     MatrixXd A_tild = MatrixXd::Zero(not_null.size(),not_null.size());
     MatrixXd B = gamma.asDiagonal()*(C.transpose());
-    MatrixXd B_tild(not_null.size(),B.cols()), C_tild(C.rows(), not_null.size());
+    MatrixXd B_tild = MatrixXd::Zero(not_null.size(),B.cols());
+    MatrixXd C_tild = MatrixXd::Zero(C.rows(), not_null.size());
     for(int i = 0; i< not_null.size(); i++){
         A_tild(i,i) = slack(not_null[i]);
         B_tild.row(i) = B.row(not_null[i]);
@@ -343,12 +351,16 @@ VectorXd Solver::solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, cons
     }
     D_tild = D_tild+P;
     MatrixXd A(l.size()+not_null.size(),l.size()+not_null.size());
+    std::cout << "A_tild:\n" << A_tild << std::endl;
+    std::cout << "B_tild:\n" << B_tild << std::endl;
+    std::cout << "C_tild:\n" << C_tild << std::endl;
+    std::cout << "D_tild:\n" << D_tild << std::endl;
     A.topLeftCorner(not_null.size(),not_null.size()) = A_tild;
     A.topRightCorner(not_null.size(),l.size()) = B_tild;
     A.bottomLeftCorner(l.size(),not_null.size()) = C_tild;
     A.bottomRightCorner(l.size(),l.size()) = D_tild;
     A.transposeInPlace();
-    
+
     VectorXd dd(A.cols());
     for(int i = 0 ; i< dd.size(); i++){
         if(i<not_null.size()){
@@ -359,7 +371,10 @@ VectorXd Solver::solveDerivativesQCQP(const MatrixXd &P, const VectorXd &q, cons
         }
     }
     VectorXd b(A.cols());
+    std::cout << "A:\n" << A << std::endl;
+    std::cout << "dd:\n" << dd.transpose() << std::endl;
     b = Solver::iterative_refinement(A,dd);
+    std::cout << "b: " << b.transpose() << std::endl;
     VectorXd blgamma = VectorXd::Zero(gamma.size()+l.size());
     for(int i = 0; i<b.size();i++){
         if(i<not_null.size()){
@@ -429,7 +444,7 @@ int Solver::test(){
     bl2 = Solver::solveDerivativesQP(m2,q2,sol2,gamma2,grad_l2,1e-8);
     //std::cout << " bl2 : " << bl2 << std::endl;
 
-    
+
     MatrixXd G2(12,12);
     G2 <<  6.6174e-24,  0.0000e+00,  0.0000e+00,  0.0000e+00, -4.8452e-04, 0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00,  0.0000e+00, 0.0000e+00,  0.0000e+00,
          0.0000e+00, -6.6174e-24,  0.0000e+00,  0.0000e+00,  0.0000e+00, 0.0000e+00, -3.9642e-04,  0.0000e+00,  0.0000e+00,  0.0000e+00, 0.0000e+00,  0.0000e+00,
@@ -459,7 +474,7 @@ int Solver::test(){
     MatrixXd G(2*test_dimension,2*test_dimension),delt_G(2*test_dimension,2*test_dimension);
     VectorXd g(2*test_dimension),delt_g(2*test_dimension);
     VectorXd grad_l3 = VectorXd::Zero(2*test_dimension);
-    grad_l3[1] = 1.; 
+    grad_l3[1] = 1.;
     VectorXd gamma3(2*test_dimension);
     for (int i = 0; i< ntest; i++){
         //std::cout<< "prob id : " << i << std::endl;
@@ -527,7 +542,7 @@ int Solver::test(){
         //std::cout << "grad to sol: " << (G*sol3 +g ) << "\n";
 
     }
-    
+
     //fsec fs = t1 - t0;
     //std::cout<< "solving QP: " << mean/ntest << "s\n";
     std::cout<< "diff QP1: " << mean2/ntest << "s\n";
