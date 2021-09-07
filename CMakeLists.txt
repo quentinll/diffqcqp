@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(diffsolvers VERSION 0.1.0)
+set(CMAKE_CXX_STANDARD 11)
 
 include(CTest)
 enable_testing()
@@ -11,6 +12,7 @@ find_package(Python3 3.7.6 REQUIRED)
 add_subdirectory(qcqplib)
 
 add_executable(diffsolver main.cpp)
+
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
