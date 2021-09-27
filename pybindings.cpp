@@ -38,10 +38,10 @@ VectorXd solveBoxQP( const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef
 
 VectorXd solveDerivativesBoxQP(const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<const VectorXd> &q, const py::EigenDRef<const VectorXd> &l_min, const py::EigenDRef<const VectorXd> &l_max, const py::EigenDRef<const VectorXd> &l, const py::EigenDRef<const VectorXd> &grad_l, const double epsilon =1e-10){
     Solver solver;
-    VectorXd gamma(l.size()),bl(l.size());
+    VectorXd gamma(2*l.size()),blgamma(3*l.size());
     gamma = solver.dualFromPrimalBoxQP(P,q,l_min,l_max,l,epsilon);
-    bl = solver.solveDerivativesBoxQP(P,q,l_min,l_max,l,gamma,grad_l,epsilon);
-    return bl;
+    blgamma = solver.solveDerivativesBoxQP(P,q,l_min,l_max,l,gamma,grad_l,epsilon);
+    return blgamma;
 }
 
 VectorXd solveQCQP( const py::EigenDRef<const MatrixXd> &P, const py::EigenDRef<const VectorXd> &q,const py::EigenDRef<const VectorXd> &l_n, const py::EigenDRef<const VectorXd> &mu, const py::EigenDRef<const VectorXd> &warm_start,const double epsilon=1e-10,const double mu_prox = 1e-7, const int max_iter = 1000, const bool adaptative_rho = true){

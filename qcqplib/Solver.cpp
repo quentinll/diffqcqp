@@ -282,8 +282,7 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
         }
     }
     VectorXd gamma_not_null(not_null.size());
-    MatrixXd Id2 (l.size(), not_null.size());
-    MatrixXd Id = MatrixXd::Identity(l.size(), l.size());
+    MatrixXd Id2 = MatrixXd::Zero(l.size(), not_null.size());
     for (int i = 0; i<not_null.size(); i++){
         if(not_null[i] <l.size()){
             Id2(not_null[i], i) = -1;
@@ -297,6 +296,7 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
     for (int i = 0; i<not_null.size(); i++){
         gamma(not_null[i]) = gamma_not_null(i);
     }
+    
     return gamma;
 }
 
@@ -321,8 +321,7 @@ VectorXd Solver::solveDerivativesBoxQP(const MatrixXd &P, const VectorXd &q, con
         l_min_max(i) = l_min(i);
         l_min_max(i+l.size()) = -l_max(i);
     }
-    MatrixXd Id2 (l.size(), not_null.size());
-    MatrixXd Id = MatrixXd::Identity(l.size(), l.size());
+    MatrixXd Id2 = MatrixXd::Zero(l.size(), not_null.size());
     for (int i = 0; i<not_null.size(); i++){
         if(not_null[i] <l.size()){
             Id2(not_null[i], i) = -1;
@@ -332,11 +331,12 @@ VectorXd Solver::solveDerivativesBoxQP(const MatrixXd &P, const VectorXd &q, con
         }
 
     }
-    MatrixXd B = gamma.asDiagonal();
+    MatrixXd B = MatrixXd::Zero(not_null.size(),l.size());
     for(int i = 0; i< not_null.size(); i++){
         B.row(i) = gamma(not_null[i])*Id2.col(i);
     }
     MatrixXd A(not_null.size() + l.size(),not_null.size() + l.size());
+    
     A.topLeftCorner(not_null.size(),not_null.size()) = MatrixXd::Zero(not_null.size(),not_null.size());
     A.topRightCorner(not_null.size(),l.size()) = B;
     A.bottomLeftCorner(l.size(),not_null.size()) = Id2;
@@ -348,7 +348,7 @@ VectorXd Solver::solveDerivativesBoxQP(const MatrixXd &P, const VectorXd &q, con
             dd(i) = 0.;
         }
         else{
-            dd(i) = grad_l(null_idx[i-not_null.size()]);
+            dd(i) = grad_l(i-not_null.size());
         }
     }
     VectorXd b(A.cols());
@@ -399,7 +399,6 @@ VectorXd Solver::solveQCQP( MatrixXd P, const VectorXd &q, const VectorXd &l_n, 
     LLT<MatrixXd> chol = P.llt();
     Pinv.setIdentity(); chol.solveInPlace(Pinv);
     int rho_up = 0, cpt=0;
-    std::cout<< "q_prox" << q_prox <<"\n";
     for(int i = 0; i< max_iter; i++){
         l = Pinv*(rho*l_2-u-q_prox);
         q_prox = q - mu_prox*l;
@@ -408,7 +407,6 @@ VectorXd Solver::solveQCQP( MatrixXd P, const VectorXd &q, const VectorXd &l_n, 
         u += rho*(alpha_relax*l + (1-alpha_relax)*l_2_pred-l_2);
         Plqu = l_2-l_2_pred;
         res_dual = rho*Plqu.lpNorm<Infinity>();
-        std::cout<< "res_dual " << i << " " << res_dual <<"\n";
         res_prim = (l_2-(alpha_relax*l + (1-alpha_relax)*l_2_pred)).lpNorm<Infinity>();
         l_2_pred = l_2;
         if( res_prim < epsilon + eps_rel*l.norm() && res_dual < epsilon ){
@@ -444,7 +442,6 @@ VectorXd Solver::solveQCQP( MatrixXd P, const VectorXd &q, const VectorXd &l_n, 
             }
         }
     };
-    std::cout<< "end solve" <<"\n";
     return l_2;
 }
 
@@ -469,7 +466,6 @@ VectorXd Solver::dualFromPrimalQCQP(const MatrixXd &P, const VectorXd &q, const 
             not_null.push_back(i);
         }
     }
-    std::cout << "slack: " << slack << std::endl;
     MatrixXd A_tild(A.rows(), not_null.size());
     for (int i = 0; i < not_null.size(); ++i) {
         A_tild.col(i) = A.col(not_null[i]);
@@ -629,7 +625,7 @@ int Solver::test(){
 
     double mean,mean2, mean3;
     mean = 0;mean2 = 0.; mean3 = 0.;
-    int ntest = 0;
+    int ntest = 1;
     std::srand((unsigned int) time(0));
     int test_dimension = 2;
     MatrixXd G(2*test_dimension,2*test_dimension),delt_G(2*test_dimension,2*test_dimension);
@@ -667,7 +663,7 @@ int Solver::test(){
         l_ng = VectorXd::Random(test_dimension)+VectorXd::Ones(test_dimension);
         l_ng = l_ng*.1;
         l_ng2 = l_ng*100000;
-        VectorXd l_min = - VectorXd::Ones(g.size());
+        VectorXd l_min = - VectorXd::Ones(g.size())*.1;
         VectorXd l_max =  VectorXd::Ones(g.size());
         //std::cout<< "lng: " << l_ng << "\n";
         auto t0 = Time::now();
@@ -681,25 +677,27 @@ int Solver::test(){
         auto t2 = Time::now();
         gamma3 = Solver::dualFromPrimalBoxQP(G,g,l_min,l_max,sol3,1e-10);
         std::cout<< "gamma: " << gamma3 << "\n";
-        std::cout<< "KKT: " << G*sol3+g + gamma3 << "\n";
+        std::cout<< "KKT: " << G*sol3+g -  gamma3.segment(0,sol3.size()) + gamma3.segment(sol3.size(),sol3.size()) << "\n";
         VectorXd blgamma(3*sol3.size());
         blgamma = Solver::solveDerivativesBoxQP(G,g,l_min,l_max,sol3,gamma3,grad_l3,1e-10);
-        std::cout<< "grad q " << -blgamma<< "\n";
+        std::cout<< "blgamma " << blgamma << "\n";
+        std::cout<< "grad q " << -blgamma.segment(2*sol3.size(), sol3.size()) << "\n";
         for (int j = 0; j< 2*test_dimension; j++){
             delt_g = VectorXd::Zero(2*test_dimension);
             delt_g[j] = 1e-5;
-            sol3_bis = Solver::solveQP(G,g+delt_g,warm_start3,1e-10,1e-7,100000, true );
+            sol3_bis = Solver::solveBoxQP(G,g+delt_g,l_min,l_max,warm_start3,1e-10,1e-7,100000, true );
             std::cout<< "num diff q "<< j << ": " << (sol3_bis-sol3)[1]/1e-5 << "\n";
         }
-        std::cout<< "grad P " << -bl*sol3.transpose()<< "\n";
+        std::cout<< "grad P " << -sol3*blgamma.segment(2*sol3.size(), sol3.size()).transpose()<< "\n";
         for (int j = 0; j< 2*test_dimension; j++){
             for (int k = 0; k< 2*test_dimension; k++){
                 delt_G = MatrixXd::Zero(2*test_dimension,2*test_dimension);
                 delt_G(j,k) = 1e-5;
-                sol3_bis = Solver::solveQP(G+delt_G,g,warm_start3,1e-10,1e-7,100000, true );
+                sol3_bis = Solver::solveBoxQP(G+delt_G,g,l_min,l_max,warm_start3,1e-10,1e-7,100000, true );
                 std::cout<< "num diff P "<< j << k << ": " << (sol3_bis-sol3)[1]/1e-5 << "\n";
             }
         }
+        break;
         auto t3 = Time::now();
         l_ng2[0] = 0.5893*0.7300;
         l_ng2 << 0.00966,0.;

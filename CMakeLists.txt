@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.0.0)
 project(diffsolvers VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 11)
 
-include(CTest)
-enable_testing()
+#include(CTest)
+#enable_testing()
 
-set(CMAKE_CXX_STANDARD 11)
+#set(CMAKE_CXX_STANDARD 11)
 
 add_subdirectory(pybind11)
 find_package(Eigen3 REQUIRED)
@@ -17,9 +17,9 @@ add_subdirectory(qcqplib)
 add_executable(diffsolver main.cpp)
 
 
-set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-include(CPack)
+#set(CPACK_PROJECT_NAME ${PROJECT_NAME})
+#set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
+#include(CPack)
 
 target_link_libraries(diffsolver qcqplib)
 
