@@ -12,12 +12,37 @@ from torch.autograd import Function, Variable
 from torch.autograd.functional import jacobian
 from torch.nn.parameter import Parameter
 import torch.nn.functional as F
-from cvxpylayers.torch import CvxpyLayer
-import cvxpy as cp
-from qpth.qp import QPFunction
+#from cvxpylayers.torch import CvxpyLayer
+#import cvxpy as cp
+#from qpth.qp import QPFunction
 import matplotlib.pyplot as plt
-import osqp
+#import osqp
 plt.style.use('bmh')
+
+from qcqp import QCQPFn2, QPFn2
+n = 2
+torch.manual_seed(5)
+qp = QPFn2().apply
+S = torch.rand(1, n, n) + 0.01
+P = torch.bmm(S, S.transpose(1, 2)).requires_grad_(True)
+q = -torch.rand((1, n, 1))-0.1
+warm_start = torch.zeros(q.size())
+lf = qp(P, q, warm_start, 1e-12, 10000)
+lf[0, 1].backward()
+print("Pgrad",P.grad)
+P.grad.zero_()
+with torch.no_grad():
+    grad_num = torch.zeros_like(P)
+    for i in range(P.size()[1]):
+        for j in range(P.size()[2]):
+            delt = torch.zeros(P.size())
+            delt[0, i, j] = 1e-8
+            lf_1 = qp(P+delt, q, warm_start, 1e-12,10000)
+            lf_2 = qp(P-delt, q, warm_start, 1e-12,10000)
+            grad_num[0, i, j] = (lf_1[0, 1]-lf_2[0, 1]).detach().item()/2e-8
+    print("grad_num",grad_num)
+
+
 
 
 class QCQP_cvxpy(nn.Module):

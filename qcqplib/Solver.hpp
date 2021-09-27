@@ -12,6 +12,9 @@ class Solver
     VectorXd solveQP( MatrixXd P, const VectorXd &q, const VectorXd &warm_start , const double epsilon, const double mu_prox, const int max_iter, const bool adaptative_rho);
     VectorXd dualFromPrimalQP(const MatrixXd &P,const VectorXd &q,const VectorXd &l, const double &epsilon);
     VectorXd solveDerivativesQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l, const VectorXd &gamma, const VectorXd &grad_l, const double &epsilon);
+    VectorXd solveBoxQP( MatrixXd P, const VectorXd &q, const VectorXd &l_min, const VectorXd &l_max, const VectorXd &warm_start , const double epsilon, const double mu_prox, const int max_iter, const bool adaptative_rho);
+    VectorXd dualFromPrimalBoxQP(const MatrixXd &P,const VectorXd &q, const VectorXd &l_min, const VectorXd &l_max,const VectorXd &l, const double &epsilon);
+    VectorXd solveDerivativesBoxQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l_min, const VectorXd &l_max, const VectorXd &l, const VectorXd &gamma, const VectorXd &grad_l, const double &epsilon);
     //VectorXd prox_circle(VectorXd l, const VectorXd &l_n);
     void prox_circle(VectorXd &l, const VectorXd &l_n);
     VectorXd solveQCQP( MatrixXd P, const VectorXd &q, const VectorXd &l_n, const VectorXd &warm_start, const double epsilon, const double mu_prox, const int max_iter,const bool adaptative_rho);
