@@ -631,7 +631,7 @@ int Solver::test(){
     MatrixXd G(2*test_dimension,2*test_dimension),delt_G(2*test_dimension,2*test_dimension);
     VectorXd g(2*test_dimension),delt_g(2*test_dimension);
     VectorXd grad_l3 = VectorXd::Zero(2*test_dimension);
-    grad_l3[2] = 1.;
+    grad_l3[2] = 0.;
     grad_l3[1] = 1.;
     VectorXd gamma3(2*test_dimension);
     for (int i = 0; i< ntest; i++){
@@ -653,7 +653,9 @@ int Solver::test(){
             0.5499,
             0.0000,
             0.0000;
-        
+        G = MatrixXd::Random(2*test_dimension,2*test_dimension);
+        G = G*G.transpose();
+        g = VectorXd::Random(2*test_dimension);
         //g[0] =-0.3661;g[1]=-0.9514;
         std::cout<< "G: " << G << "\n";
         std::cout<< "g: " << g << "\n";
@@ -663,8 +665,8 @@ int Solver::test(){
         l_ng = VectorXd::Random(test_dimension)+VectorXd::Ones(test_dimension);
         l_ng = l_ng*.1;
         l_ng2 = l_ng*100000;
-        VectorXd l_min = - VectorXd::Ones(g.size())*.1;
-        VectorXd l_max =  VectorXd::Ones(g.size());
+        VectorXd l_min = - VectorXd::Ones(g.size())*100;
+        VectorXd l_max =  VectorXd::Ones(g.size())*100;
         //std::cout<< "lng: " << l_ng << "\n";
         auto t0 = Time::now();
         //sol3 = Solver::solveQP(G,g,warm_start3,1e-10,1e-7,10000);

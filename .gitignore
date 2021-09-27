@@ -3,9 +3,7 @@ __pycache__/
 build/
 dist/
 diffqcqp.egg-info/
-pybindings.cpython-37m-x86_64-linux-gnu.so
-pybindings.cpython-39-x86_64-linux-gnu.so
-pybindings.cpython-38-x86_64-linux-gnu.so
+pydiffqcqp.cpython-39-x86_64-linux-gnu.so
 qcqp_no_batch.py
 CMakeLists.txt
 CMakeFiles/
