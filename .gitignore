@@ -7,3 +7,13 @@ pybindings.cpython-37m-x86_64-linux-gnu.so
 pybindings.cpython-39-x86_64-linux-gnu.so
 pybindings.cpython-38-x86_64-linux-gnu.so
 qcqp_no_batch.py
+cmake_install.cmake
+CMakeLists.txt
+CPackConfig.cmake
+CPackSourceConfig.cmake
+CTestTestfile.cmake
+DartConfiguration.tcl   
+Makefile
+CMakeCache.txt
+CMakeFiles/
+qcqplib/CMakeFiles/

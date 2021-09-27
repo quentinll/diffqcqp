@@ -745,6 +745,7 @@ int Solver::test(){
         //std::cout << "grad to sol: " << (G*sol3 +g ) << "\n";
 
     }
+    return 0;
     VectorXd g4(8), l_ng4(4);
     MatrixXd G4(8,8);
     G4 <<  2.8750, -0.3750,  2.1250, -0.3750,  2.8750,  0.3750,  2.1250,  0.3750,
