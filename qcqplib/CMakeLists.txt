@@ -2,12 +2,12 @@ cmake_minimum_required(VERSION 3.0)
 
 project(qcqplib)
 
-find_package(Eigen3 3.3 REQUIRED)
+find_package(Eigen3  REQUIRED)
 
 set(SRCS
     Solver.cpp
     )
-    
+
 set(HEADERS
     Solver.hpp
     )
