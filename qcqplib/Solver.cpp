@@ -265,6 +265,8 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
     std::vector<int> not_null; //contains index of non null coordinates of gamma
     std::vector<int> null_idx; //contains index of null coordinates of gamma
     for (int i = 0; i<l.size();i++){
+        std::cout << "l-lmin" << l(i)-l_min(i) << "\n";
+        std::cout << "l-lmax" << l(i)-l_max(i) << "\n";
         if(l(i)-l_min(i)>epsilon){
             gamma(i) = 0;
             null_idx.push_back(i);
@@ -272,7 +274,7 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
         else{
             not_null.push_back(i);
         }
-        if(l(i)-l_max(i)<epsilon){
+        if(l(i)-l_max(i)<-epsilon){
             gamma(l.size()+i) = 0;
             null_idx.push_back(l.size()+i);
         }
@@ -281,6 +283,11 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
             not_null.push_back(l.size()+i);
         }
     }
+    std::cout << "not null" << "\n";
+    for(int i=0;i<not_null.size();i++){
+        std::cout << not_null[i] << "\n";
+    }
+    
     VectorXd gamma_not_null(not_null.size());
     MatrixXd Id2 = MatrixXd::Zero(l.size(), not_null.size());
     for (int i = 0; i<not_null.size(); i++){
@@ -288,7 +295,7 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
             Id2(not_null[i], i) = -1;
         }
         else{
-            Id2(not_null[i], i) = 1;
+            Id2(not_null[i]-l.size(), i) = 1;
         }
 
     }
@@ -296,7 +303,7 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
     for (int i = 0; i<not_null.size(); i++){
         gamma(not_null[i]) = gamma_not_null(i);
     }
-    
+    std::cout << "KKT" << P*l +q - gamma.segment(0,l.size()) + gamma.segment(l.size(),l.size()) << "\n";
     return gamma;
 }
 
@@ -311,7 +318,7 @@ VectorXd Solver::solveDerivativesBoxQP(const MatrixXd &P, const VectorXd &q, con
         else{
             not_null.push_back(i);
         }
-        if(l(i)-l_max(i)<epsilon){
+        if(l(i)-l_max(i)<-epsilon){
             null_idx.push_back(l.size()+i);
         }
         else
@@ -327,7 +334,7 @@ VectorXd Solver::solveDerivativesBoxQP(const MatrixXd &P, const VectorXd &q, con
             Id2(not_null[i], i) = -1;
         }
         else{
-            Id2(not_null[i], i) = 1;
+            Id2(not_null[i]-l.size(), i) = 1;
         }
 
     }
@@ -629,7 +636,7 @@ int Solver::test(){
     std::srand((unsigned int) time(0));
     int test_dimension = 2;
     MatrixXd G(2*test_dimension,2*test_dimension),delt_G(2*test_dimension,2*test_dimension);
-    VectorXd g(2*test_dimension),delt_g(2*test_dimension);
+    VectorXd g(2*test_dimension),delt_g(2*test_dimension), delt_l_min(2*test_dimension);
     VectorXd grad_l3 = VectorXd::Zero(2*test_dimension);
     grad_l3[2] = 0.;
     grad_l3[1] = 1.;
@@ -665,8 +672,10 @@ int Solver::test(){
         l_ng = VectorXd::Random(test_dimension)+VectorXd::Ones(test_dimension);
         l_ng = l_ng*.1;
         l_ng2 = l_ng*100000;
-        VectorXd l_min = - VectorXd::Ones(g.size())*100;
-        VectorXd l_max =  VectorXd::Ones(g.size())*100;
+        VectorXd l_min = - (VectorXd::Random(g.size())*0.5+VectorXd::Ones(g.size()));
+        VectorXd l_max =  VectorXd::Random(g.size())*0.5+VectorXd::Ones(g.size());
+        std::cout<< "l_min: " << l_min << "\n";
+        std::cout<< "l_max: " << l_max << "\n";
         //std::cout<< "lng: " << l_ng << "\n";
         auto t0 = Time::now();
         //sol3 = Solver::solveQP(G,g,warm_start3,1e-10,1e-7,10000);
@@ -689,6 +698,13 @@ int Solver::test(){
             delt_g[j] = 1e-5;
             sol3_bis = Solver::solveBoxQP(G,g+delt_g,l_min,l_max,warm_start3,1e-10,1e-7,100000, true );
             std::cout<< "num diff q "<< j << ": " << (sol3_bis-sol3)[1]/1e-5 << "\n";
+        }
+        std::cout<< "grad l_min " << gamma3.segment(0, sol3.size()).asDiagonal()*blgamma.segment(0, sol3.size()) << "\n";
+        for (int j = 0; j< 2*test_dimension; j++){
+            delt_l_min = VectorXd::Zero(2*test_dimension);
+            delt_l_min[j] = 1e-5;
+            sol3_bis = Solver::solveBoxQP(G,g,l_min+delt_l_min,l_max,warm_start3,1e-10,1e-7,100000, true );
+            std::cout<< "num diff l_min "<< j << ": " << (sol3_bis-sol3)[1]/1e-5 << "\n";
         }
         std::cout<< "grad P " << -sol3*blgamma.segment(2*sol3.size(), sol3.size()).transpose()<< "\n";
         for (int j = 0; j< 2*test_dimension; j++){
