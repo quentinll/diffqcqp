@@ -8,3 +8,4 @@ qcqp_no_batch.py
 CMakeLists.txt
 CMakeFiles/
 qcqplib/CMakeFiles/
+pydiffqcqp.egg-info
