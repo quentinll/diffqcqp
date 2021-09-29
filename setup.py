@@ -62,7 +62,7 @@ class CMakeBuild(build_ext):
 
 
 setup(
-    name="diffqcqp",
+    name="pydiffqcqp",
     version='0.0.1',
     author="Quentin Le Lidec",
     author_email="quentin.le-lidec@inria.fr",

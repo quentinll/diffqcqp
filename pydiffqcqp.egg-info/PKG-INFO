@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: pydiffqcqp
+Version: 0.0.1
+Summary: Implementation of QP and QCQP solvers and their derivatives
+Home-page: https://github.com/quentinll/diffqcqp
+Author: Quentin Le Lidec
+Author-email: quentin.le-lidec@inria.fr
+License: UNKNOWN
+Platform: UNKNOWN
+License-File: LICENSE
+
+UNKNOWN
+

@@ -23,7 +23,7 @@ add_executable(diffsolver main.cpp)
 
 target_link_libraries(diffsolver qcqplib)
 
-pybind11_add_module(pydiffqcqp pybindings.cpp)
-target_link_libraries(pydiffqcqp PRIVATE Eigen3::Eigen)
-target_link_libraries(pydiffqcqp PRIVATE qcqplib)
-target_compile_options(pydiffqcqp PRIVATE -fPIC)
+pybind11_add_module(diffqcqp pybindings.cpp)
+target_link_libraries(diffqcqp PRIVATE Eigen3::Eigen)
+target_link_libraries(diffqcqp PRIVATE qcqplib)
+target_compile_options(diffqcqp PRIVATE -fPIC)

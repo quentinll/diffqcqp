@@ -64,7 +64,7 @@ std::tuple<MatrixXd,MatrixXd,VectorXd> solveDerivativesQCQP(const py::EigenDRef<
 }
 
 
-PYBIND11_MODULE(pybindings, m) {
+PYBIND11_MODULE(diffqcqp, m) {
     m.doc() = "module solving QCQP and QP with ADMM, and computing the derivatives of the solution using implicit differentiation of KKT optimality conditions";
     m.def("solveQP", &solveQP, "A function which solves a QP problem with a regularized ADMM algorithm",py::arg("P"), py::arg("q"),py::arg("warm_start"),py::arg("epsilon") = 1e-10,py::arg("mu_prox")= 1e-7,py::arg("max_iter")= 1000,py::arg("adaptative_rho")= true, py::return_value_policy::reference_internal );
     m.def("solveBoxQP", &solveBoxQP, "A function which solves a box QP problem with a regularized ADMM algorithm",py::arg("P"), py::arg("q"),py::arg("l_min"), py::arg("l_max"),py::arg("warm_start"),py::arg("epsilon") = 1e-10,py::arg("mu_prox")= 1e-7,py::arg("max_iter")= 1000,py::arg("adaptative_rho")= true, py::return_value_policy::reference_internal );

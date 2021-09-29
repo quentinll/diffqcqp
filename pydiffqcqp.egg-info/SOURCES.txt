@@ -1,0 +1,8 @@
+LICENSE
+README.md
+setup.py
+pydiffqcqp.egg-info/PKG-INFO
+pydiffqcqp.egg-info/SOURCES.txt
+pydiffqcqp.egg-info/dependency_links.txt
+pydiffqcqp.egg-info/not-zip-safe
+pydiffqcqp.egg-info/top_level.txt
