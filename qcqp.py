@@ -14,7 +14,7 @@ torch.set_default_dtype(torch.double)
 
 import torch.autograd.profiler as profiler
 
-from pydiffqcqp import solveQP, solveBoxQP, solveQCQP, solveDerivativesQP, solveDerivativesBoxQP, solveDerivativesQCQP
+from diffqcqp import solveQP, solveBoxQP, solveQCQP, solveDerivativesQP, solveDerivativesBoxQP, solveDerivativesQCQP
 
 import time
 import timeit
