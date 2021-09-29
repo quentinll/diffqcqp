@@ -3,7 +3,7 @@ __pycache__/
 build/
 dist/
 diffqcqp.egg-info/
-pydiffqcqp.cpython-39-x86_64-linux-gnu.so
+pydiffqcqp.cpython*
 qcqp_no_batch.py
 CMakeLists.txt
 CMakeFiles/
