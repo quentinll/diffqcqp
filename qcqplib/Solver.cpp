@@ -265,8 +265,8 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
     std::vector<int> not_null; //contains index of non null coordinates of gamma
     std::vector<int> null_idx; //contains index of null coordinates of gamma
     for (int i = 0; i<l.size();i++){
-        std::cout << "l-lmin" << l(i)-l_min(i) << "\n";
-        std::cout << "l-lmax" << l(i)-l_max(i) << "\n";
+        //std::cout << "l-lmin" << l(i)-l_min(i) << "\n";
+        //std::cout << "l-lmax" << l(i)-l_max(i) << "\n";
         if(l(i)-l_min(i)>epsilon){
             gamma(i) = 0;
             null_idx.push_back(i);
@@ -283,7 +283,7 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
             not_null.push_back(l.size()+i);
         }
     }
-    std::cout << "not null" << "\n";
+    //std::cout << "not null" << "\n";
     for(int i=0;i<not_null.size();i++){
         std::cout << not_null[i] << "\n";
     }
@@ -303,7 +303,7 @@ VectorXd Solver::dualFromPrimalBoxQP(const MatrixXd &P, const VectorXd &q, const
     for (int i = 0; i<not_null.size(); i++){
         gamma(not_null[i]) = gamma_not_null(i);
     }
-    std::cout << "KKT" << P*l +q - gamma.segment(0,l.size()) + gamma.segment(l.size(),l.size()) << "\n";
+    //std::cout << "KKT" << P*l +q - gamma.segment(0,l.size()) + gamma.segment(l.size(),l.size()) << "\n";
     return gamma;
 }
 
@@ -371,6 +371,135 @@ VectorXd Solver::solveDerivativesBoxQP(const MatrixXd &P, const VectorXd &q, con
 }
 
 
+VectorXd Solver::solveSignedBoxQP( MatrixXd P, const VectorXd &q, const VectorXd &l_min, const VectorXd &l_max, VectorXd v, const VectorXd &warm_start, const double epsilon =1e-10, const double mu_prox = 1e-7, const int max_iter=1000,const bool adaptative_rho=true){
+    //solving a QP using ADMM algorithm
+    double L, rho, res_dual, res_prim, mu_thresh, tau_inc, tau_dec, alpha_relax;
+    mu_thresh = 10.; alpha_relax = 1.5;
+    MatrixXd Pinv(P.rows(), P.cols());
+    VectorXd q_prox(q.size()),l(q.size()),Plqu(q.size());
+    VectorXd u = VectorXd::Zero(q.size());
+    VectorXd l_2 = VectorXd::Zero(q.size());
+    VectorXd l_2_pred = l_2;
+    l = warm_start;
+    L = Solver::power_iteration(P,epsilon, 10);
+    rho = std::sqrt(mu_prox*L)*std::pow(L/mu_prox,.4);
+    tau_inc = std::pow(L/mu_prox,.15); tau_dec = tau_inc;
+    q_prox = q;
+    P += (rho+mu_prox)* MatrixXd::Identity(P.rows(), P.cols());
+    LLT<MatrixXd> chol = P.llt();
+    Pinv.setIdentity(); chol.solveInPlace(Pinv);
+    v = v.cwiseSign();
+    int rho_up = 0, cpt = 0;
+    for(int i = 0; i< max_iter; i++){
+        l.noalias() = Pinv*(rho*l_2-u-q_prox);
+        q_prox.noalias() = q - mu_prox*l;
+        l_2.noalias() = (alpha_relax*l + (1-alpha_relax)*l_2+u/rho).cwiseMax(l_min);
+        l_2.noalias() = l_2.cwiseMin(l_max);
+        l_2.noalias() = v.asDiagonal()*((v.asDiagonal()*l_2).cwiseMin(0));
+        u.noalias() += rho*(alpha_relax*l + (1-alpha_relax)*l_2_pred-l_2);
+        Plqu.noalias() = rho*(l_2-l_2_pred);
+        res_dual = Plqu.lpNorm<Infinity>();
+        res_prim = (l_2-(alpha_relax*l + (1-alpha_relax)*l_2_pred)).lpNorm<Infinity>();
+        l_2_pred = l_2;
+        if(res_dual < epsilon){
+            break;
+        }
+        if(adaptative_rho){
+            if(res_prim > mu_thresh*res_dual){ //rho needs to be increased
+                if( cpt% 5 == 0){ //limits the frequency of rho update to 1 every 5 iterations
+                    if (rho_up ==-1){
+                        tau_inc = 1+.8*(tau_inc-1);
+                        tau_dec = 1+.8*(tau_dec-1);
+                    }
+                    P += rho*(tau_inc-1)*MatrixXd::Identity(P.rows(), P.cols());
+                    rho *= tau_inc;
+                    chol = P.llt();
+                    Pinv.setIdentity(); chol.solveInPlace(Pinv);
+                    rho_up= 1;
+                }
+                cpt++;
+            }
+            else if (res_dual > mu_thresh*res_prim){//rho needs to be decreased
+                if( cpt% 5 == 0){ 
+                    if (rho_up ==1){
+                        tau_inc = 1+.8*(tau_inc-1);
+                        tau_dec = 1+.8*(tau_dec-1);
+                    }
+                    P += rho*(1./tau_dec-1)*MatrixXd::Identity(P.rows(), P.cols());
+                    rho /= tau_dec;
+                    chol = P.llt();
+                    Pinv.setIdentity(); chol.solveInPlace(Pinv);
+                    rho_up=-1;
+                }
+                cpt++;
+            }
+        }
+    };
+    return l_2;
+}
+
+VectorXd Solver::dualFromPrimalSignedBoxQP(const MatrixXd &P, const VectorXd &q, const VectorXd &l_min, const VectorXd &l_max, VectorXd v, const VectorXd &l, const double &epsilon=1e-10){//computes dual solutions from primal solution
+    VectorXd gamma = VectorXd::Zero(3*l.size());
+    std::vector<int> not_null; //contains index of non null coordinates of gamma
+    std::vector<int> null_idx; //contains index of null coordinates of gamma
+    v = v.cwiseSign();
+    for (int i = 0; i<l.size();i++){
+        //std::cout << "l-lmin" << l(i)-l_min(i) << "\n";
+        //std::cout << "l-lmax" << l(i)-l_max(i) << "\n";
+        if(l(i)-l_min(i)>epsilon){
+            gamma(i) = 0;
+            null_idx.push_back(i);
+        }
+        else{
+            not_null.push_back(i);
+        }
+        if(l(i)-l_max(i)<-epsilon){
+            gamma(l.size()+i) = 0;
+            null_idx.push_back(l.size()+i);
+        }
+        else
+        {
+            not_null.push_back(l.size()+i);
+        }
+        //std::cout << "v*l" << v(i)*l(i) << "\n";
+        if(v(i)*l(i)<-epsilon){
+            gamma(2*l.size()+i) = 0;
+            null_idx.push_back(l.size()+i);
+        }
+        else
+        {
+            not_null.push_back(2*l.size()+i);
+        }
+    }
+    /*std::cout << "not null" << "\n";
+    for(int i=0;i<not_null.size();i++){
+        std::cout << not_null[i] << "\n";
+    }*/
+    
+    VectorXd gamma_not_null(not_null.size());
+    MatrixXd Id2 = MatrixXd::Zero(l.size(), not_null.size());
+    for (int i = 0; i<not_null.size(); i++){
+        if(not_null[i] <l.size()){
+            Id2(not_null[i], i) = -1;
+        }
+        else{
+            if(not_null[i] <2*l.size()){
+                Id2(not_null[i]-l.size(), i) = 1;
+            }
+            else
+            {
+                Id2(not_null[i]-2*l.size(), i) = v(not_null[i]-2*l.size());
+            }
+        }
+
+    }
+    gamma_not_null = iterative_refinement(Id2, -P*l - q);
+    for (int i = 0; i<not_null.size(); i++){
+        gamma(not_null[i]) = gamma_not_null(i);
+    }
+    //std::cout << "KKT" << P*l +q - gamma.segment(0,l.size()) + gamma.segment(l.size(),l.size()) + v.asDiagonal()*gamma.segment(2*l.size(),l.size()) << "\n";
+    return gamma;
+}
 
 
 void Solver::prox_circle(VectorXd &l, const VectorXd &l_n){//projection of l on the disk of radius l_n
@@ -636,7 +765,7 @@ int Solver::test(){
     std::srand((unsigned int) time(0));
     int test_dimension = 2;
     MatrixXd G(2*test_dimension,2*test_dimension),delt_G(2*test_dimension,2*test_dimension);
-    VectorXd g(2*test_dimension),delt_g(2*test_dimension), delt_l_min(2*test_dimension);
+    VectorXd g(2*test_dimension),delt_g(2*test_dimension), delt_l_min(2*test_dimension),v(2*test_dimension);
     VectorXd grad_l3 = VectorXd::Zero(2*test_dimension);
     grad_l3[2] = 0.;
     grad_l3[1] = 1.;
@@ -663,9 +792,11 @@ int Solver::test(){
         G = MatrixXd::Random(2*test_dimension,2*test_dimension);
         G = G*G.transpose();
         g = VectorXd::Random(2*test_dimension);
+        v = VectorXd::Random(2*test_dimension);
         //g[0] =-0.3661;g[1]=-0.9514;
         std::cout<< "G: " << G << "\n";
         std::cout<< "g: " << g << "\n";
+        std::cout<< "v: " << v << "\n";
         SelfAdjointEigenSolver<MatrixXd> eigensolver(G);
         if (eigensolver.info() != Success) abort();
         //cout << "The eigenvalues of G are:\n" << eigensolver.eigenvalues() << endl;
@@ -682,12 +813,15 @@ int Solver::test(){
         auto t1 = Time::now();
         //sol3 = Solver::solveQCQP(G,g,l_ng,warm_start3,1e-10,1e-7,100000);
         VectorXd sol3(2*test_dimension);
-        sol3 = Solver::solveBoxQP(G,g,l_min,l_max,warm_start3,1e-10,1e-7,100000, true );
+        //sol3 = Solver::solveBoxQP(G,g,l_min,l_max,warm_start3,1e-10,1e-7,100000, true );
+        sol3 = Solver::solveSignedBoxQP(G,g,l_min,l_max,v,warm_start3,1e-10,1e-7,100000, true );
         std::cout<< "sol: " << sol3 << "\n";
         VectorXd sol3_bis(2*test_dimension);
         auto t2 = Time::now();
-        gamma3 = Solver::dualFromPrimalBoxQP(G,g,l_min,l_max,sol3,1e-10);
+        //gamma3 = Solver::dualFromPrimalBoxQP(G,g,l_min,l_max,sol3,1e-10);
+        gamma3 = Solver::dualFromPrimalSignedBoxQP(G,g,l_min,l_max,v,sol3,1e-10);
         std::cout<< "gamma: " << gamma3 << "\n";
+        break;
         std::cout<< "KKT: " << G*sol3+g -  gamma3.segment(0,sol3.size()) + gamma3.segment(sol3.size(),sol3.size()) << "\n";
         VectorXd blgamma(3*sol3.size());
         blgamma = Solver::solveDerivativesBoxQP(G,g,l_min,l_max,sol3,gamma3,grad_l3,1e-10);
