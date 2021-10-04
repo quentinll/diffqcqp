@@ -5,6 +5,8 @@ dist/
 diffqcqp.egg-info/
 pydiffqcqp.cpython
 pydiffqcqp.cpython-39-x86_64-linux-gnu.so
+diffqcqp.cpython-38-x86_64-linux-gnu.so
+diffqcqp.cpython-39-x86_64-linux-gnu.so
 qcqp_no_batch.py
 CMakeLists.txt
 CMakeFiles/
