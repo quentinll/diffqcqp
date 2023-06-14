@@ -45,7 +45,7 @@ VectorXd Solver::iterative_refinement(const Ref<const MatrixXd> A,const VectorXd
 
 double Solver::power_iteration(const MatrixXd &A,const  double epsilon = 1e-10, const int max_iter = 100){//computes the biggest eigenvalue of A
     VectorXd v(A.cols()), Av(A.cols());
-    v = VectorXd::Random(A.cols());
+    v = VectorXd::Constant(A.cols(),1/std::sqrt(A.cols()));
     v.normalize();
     for (int i =0; i< max_iter; i++){
         Av.noalias() = A*v;
